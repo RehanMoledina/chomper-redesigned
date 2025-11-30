@@ -10,6 +10,7 @@ type ViewMode = "today" | "all";
 interface TaskListProps {
   tasks: Task[];
   onComplete: (id: string) => void;
+  onUncomplete?: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit?: (task: Task) => void;
   completingTaskId?: string | null;
@@ -21,7 +22,7 @@ type TaskGroup = {
   tasks: Task[];
 };
 
-export function TaskList({ tasks, onComplete, onDelete, onEdit, completingTaskId, viewMode = "today" }: TaskListProps) {
+export function TaskList({ tasks, onComplete, onUncomplete, onDelete, onEdit, completingTaskId, viewMode = "today" }: TaskListProps) {
   const groupedTasks = useMemo(() => {
     const today = startOfDay(new Date());
     const groups: TaskGroup[] = [];
@@ -121,6 +122,7 @@ export function TaskList({ tasks, onComplete, onDelete, onEdit, completingTaskId
                     key={task.id}
                     task={task}
                     onComplete={onComplete}
+                    onUncomplete={onUncomplete}
                     onDelete={onDelete}
                     onEdit={onEdit}
                     isCompleting={completingTaskId === task.id}
@@ -148,6 +150,7 @@ export function TaskList({ tasks, onComplete, onDelete, onEdit, completingTaskId
                   key={task.id}
                   task={task}
                   onComplete={onComplete}
+                  onUncomplete={onUncomplete}
                   onDelete={onDelete}
                   onEdit={onEdit}
                   isCompleting={completingTaskId === task.id}

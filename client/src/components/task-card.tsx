@@ -9,6 +9,7 @@ import type { Task } from "@shared/schema";
 interface TaskCardProps {
   task: Task;
   onComplete: (id: string) => void;
+  onUncomplete?: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit?: (task: Task) => void;
   isCompleting?: boolean;
@@ -21,12 +22,14 @@ const categoryColors: Record<string, string> = {
   other: "bg-gray-500",
 };
 
-export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCard({ task, onComplete, onDelete, onEdit, isCompleting }, ref) {
+export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCard({ task, onComplete, onUncomplete, onDelete, onEdit, isCompleting }, ref) {
   const [showActions, setShowActions] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleComplete = () => {
-    if (!task.completed) {
+  const handleToggleComplete = () => {
+    if (task.completed && onUncomplete) {
+      onUncomplete(task.id);
+    } else if (!task.completed) {
       onComplete(task.id);
     }
   };
@@ -87,7 +90,7 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
         <div className="pt-0.5">
           <Checkbox
             checked={task.completed}
-            onCheckedChange={handleComplete}
+            onCheckedChange={handleToggleComplete}
             className="h-5 w-5 rounded-md border-2 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
             data-testid={`checkbox-task-${task.id}`}
           />

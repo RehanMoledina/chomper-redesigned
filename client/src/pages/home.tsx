@@ -136,6 +136,28 @@ export default function Home() {
     },
   });
 
+  const uncompleteTaskMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("PATCH", `/api/tasks/${id}`, { completed: false, completedAt: null });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      toast({
+        title: "Restored",
+        description: "Task has been restored to your list.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to restore task. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddTask = useCallback(
     (task: Omit<InsertTask, "id" | "createdAt" | "completedAt">) => {
       addTaskMutation.mutate(task);
@@ -148,6 +170,13 @@ export default function Home() {
       completeTaskMutation.mutate(id);
     },
     [completeTaskMutation]
+  );
+
+  const handleUncompleteTask = useCallback(
+    (id: string) => {
+      uncompleteTaskMutation.mutate(id);
+    },
+    [uncompleteTaskMutation]
   );
 
   const handleDeleteTask = useCallback(
@@ -293,6 +322,7 @@ export default function Home() {
         <TaskList
           tasks={filteredTasks}
           onComplete={handleCompleteTask}
+          onUncomplete={handleUncompleteTask}
           onDelete={handleDeleteTask}
           onEdit={handleEditTask}
           completingTaskId={completingTaskId}
