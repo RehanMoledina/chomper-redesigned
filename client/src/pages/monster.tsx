@@ -1,12 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
-import { MonsterCompanion } from "@/components/monster-companion";
+import { MonsterCompanion, monsterInfo } from "@/components/monster-companion";
+import { MonsterSelector } from "@/components/monster-selector";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { Sparkles, Heart, Zap, Star } from "lucide-react";
+import { useMonster } from "@/hooks/use-monster";
 import type { Task, MonsterStats } from "@shared/schema";
 
 export default function Monster() {
+  const { selectedMonster } = useMonster();
+  
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
     queryKey: ["/api/tasks"],
   });
@@ -73,10 +77,10 @@ export default function Monster() {
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
         <header className="text-center">
           <h1 className="text-2xl font-semibold text-foreground" data-testid="text-page-title">
-            Your Chomper
+            Your {monsterInfo[selectedMonster].name}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Your productivity companion
+            {monsterInfo[selectedMonster].description}
           </p>
         </header>
 
@@ -92,6 +96,7 @@ export default function Monster() {
             tasksCompleted={completedToday}
             showMessage={true}
             message={getMonsterMessage()}
+            monsterType={selectedMonster}
           />
         </motion.div>
 
@@ -153,7 +158,7 @@ export default function Monster() {
             </div>
             <p className="text-xs text-muted-foreground mt-2">
               {completedToday === 0
-                ? "Chomper is waiting for its first meal today!"
+                ? `${monsterInfo[selectedMonster].name} is waiting for its first meal today!`
                 : completedToday < 3
                 ? "Just getting started. Feed me more!"
                 : completedToday < 6
@@ -162,6 +167,8 @@ export default function Monster() {
             </p>
           </CardContent>
         </Card>
+
+        <MonsterSelector />
       </div>
     </div>
   );

@@ -8,10 +8,12 @@ import { MonsterCompanion } from "@/components/monster-companion";
 import { CategoryFilter } from "@/components/category-filter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useMonster } from "@/hooks/use-monster";
 import type { Task, InsertTask } from "@shared/schema";
 
 export default function Home() {
   const { toast } = useToast();
+  const { selectedMonster } = useMonster();
   const [showCelebration, setShowCelebration] = useState(false);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const [celebrationMessage, setCelebrationMessage] = useState("");
@@ -210,6 +212,7 @@ export default function Home() {
             size="small"
             tasksCompleted={completedToday}
             showMessage={false}
+            monsterType={selectedMonster}
           />
         </header>
 

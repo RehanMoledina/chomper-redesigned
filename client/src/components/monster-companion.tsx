@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 type MonsterState = "idle" | "hungry" | "eating" | "happy" | "celebrating";
+type MonsterType = "chomper" | "blaze" | "sparkle" | "royal" | "cosmic";
 
 interface MonsterCompanionProps {
   state?: MonsterState;
@@ -10,6 +11,7 @@ interface MonsterCompanionProps {
   onAnimationComplete?: () => void;
   showMessage?: boolean;
   message?: string;
+  monsterType?: MonsterType;
 }
 
 const monsterMessages = {
@@ -25,6 +27,52 @@ const getRandomMessage = (state: MonsterState): string => {
   return messages[Math.floor(Math.random() * messages.length)];
 };
 
+const monsterColors: Record<MonsterType, Record<MonsterState, string>> = {
+  chomper: {
+    idle: "bg-gradient-to-b from-emerald-400 to-emerald-500",
+    hungry: "bg-gradient-to-b from-blue-400 to-blue-500",
+    eating: "bg-gradient-to-b from-emerald-400 to-emerald-500",
+    happy: "bg-gradient-to-b from-emerald-400 to-emerald-500",
+    celebrating: "bg-gradient-to-b from-yellow-400 to-amber-500",
+  },
+  blaze: {
+    idle: "bg-gradient-to-b from-orange-400 to-red-500",
+    hungry: "bg-gradient-to-b from-orange-300 to-orange-400",
+    eating: "bg-gradient-to-b from-red-400 to-red-500",
+    happy: "bg-gradient-to-b from-orange-400 to-red-500",
+    celebrating: "bg-gradient-to-b from-yellow-400 to-orange-500",
+  },
+  sparkle: {
+    idle: "bg-gradient-to-b from-pink-400 to-purple-500",
+    hungry: "bg-gradient-to-b from-pink-300 to-pink-400",
+    eating: "bg-gradient-to-b from-purple-400 to-purple-500",
+    happy: "bg-gradient-to-b from-pink-400 to-purple-500",
+    celebrating: "bg-gradient-to-b from-yellow-300 to-pink-400",
+  },
+  royal: {
+    idle: "bg-gradient-to-b from-indigo-400 to-purple-600",
+    hungry: "bg-gradient-to-b from-indigo-300 to-indigo-400",
+    eating: "bg-gradient-to-b from-indigo-500 to-purple-600",
+    happy: "bg-gradient-to-b from-indigo-400 to-purple-600",
+    celebrating: "bg-gradient-to-b from-amber-400 to-indigo-500",
+  },
+  cosmic: {
+    idle: "bg-gradient-to-b from-cyan-400 to-blue-600",
+    hungry: "bg-gradient-to-b from-cyan-300 to-cyan-400",
+    eating: "bg-gradient-to-b from-blue-400 to-indigo-600",
+    happy: "bg-gradient-to-b from-cyan-400 to-blue-600",
+    celebrating: "bg-gradient-to-b from-yellow-300 to-cyan-500",
+  },
+};
+
+export const monsterInfo: Record<MonsterType, { name: string; description: string; requirement: string }> = {
+  chomper: { name: "Chomper", description: "The classic green friend", requirement: "Always available" },
+  blaze: { name: "Blaze", description: "A fiery companion", requirement: "Complete 10 tasks" },
+  sparkle: { name: "Sparkle", description: "A magical friend", requirement: "Reach 75% happiness" },
+  royal: { name: "Royal", description: "A noble companion", requirement: "Maintain a 7-day streak" },
+  cosmic: { name: "Cosmic", description: "A stellar friend", requirement: "Complete 50 tasks" },
+};
+
 export function MonsterCompanion({
   state = "idle",
   tasksCompleted = 0,
@@ -32,6 +80,7 @@ export function MonsterCompanion({
   onAnimationComplete,
   showMessage = true,
   message,
+  monsterType = "chomper",
 }: MonsterCompanionProps) {
   const [currentMessage, setCurrentMessage] = useState(message || getRandomMessage(state));
   const [isChomping, setIsChomping] = useState(false);
@@ -71,14 +120,8 @@ export function MonsterCompanion({
   }, [state, onAnimationComplete]);
 
   const getMonsterColor = useCallback(() => {
-    switch (state) {
-      case "hungry": return "bg-gradient-to-b from-blue-400 to-blue-500";
-      case "eating": return "bg-gradient-to-b from-emerald-400 to-emerald-500";
-      case "happy": return "bg-gradient-to-b from-emerald-400 to-emerald-500";
-      case "celebrating": return "bg-gradient-to-b from-yellow-400 to-amber-500";
-      default: return "bg-gradient-to-b from-emerald-400 to-emerald-500";
-    }
-  }, [state]);
+    return monsterColors[monsterType][state];
+  }, [state, monsterType]);
 
   const getMouthState = useCallback(() => {
     if (isChomping) {

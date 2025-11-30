@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
+import { MonsterProvider } from "@/hooks/use-monster";
 import { BottomNav } from "@/components/bottom-nav";
 import Home from "@/pages/home";
 import Monster from "@/pages/monster";
@@ -27,13 +28,15 @@ function App() {
   return (
     <ThemeProvider defaultTheme="light" storageKey="chomper-theme">
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <div className="min-h-screen bg-background">
-            <Router />
-            <BottomNav />
-          </div>
-          <Toaster />
-        </TooltipProvider>
+        <MonsterProvider>
+          <TooltipProvider>
+            <div className="min-h-screen bg-background">
+              <Router />
+              <BottomNav />
+            </div>
+            <Toaster />
+          </TooltipProvider>
+        </MonsterProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );
