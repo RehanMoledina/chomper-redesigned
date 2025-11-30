@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Trash2, Calendar } from "lucide-react";
+import { Trash2, Calendar } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { format, isToday, isTomorrow, isPast, isValid } from "date-fns";
@@ -21,7 +21,7 @@ const categoryColors: Record<string, string> = {
   other: "bg-gray-500",
 };
 
-export function TaskCard({ task, onComplete, onDelete, isCompleting }: TaskCardProps) {
+export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCard({ task, onComplete, onDelete, isCompleting }, ref) {
   const [showDelete, setShowDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -63,25 +63,25 @@ export function TaskCard({ task, onComplete, onDelete, isCompleting }: TaskCardP
   const categoryColor = categoryColors[task.category || "other"] || categoryColors.other;
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        layout
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ 
-          opacity: isDeleting || isCompleting ? 0 : 1, 
-          y: 0,
-          x: isDeleting ? -20 : 0,
-          scale: isCompleting ? 0.95 : 1,
-        }}
-        exit={{ opacity: 0, x: -20 }}
-        transition={{ duration: 0.2 }}
-        className={`group relative flex items-start gap-3 p-4 bg-card border border-card-border rounded-lg shadow-sm transition-colors hover-elevate ${
-          task.completed ? "opacity-60" : ""
-        }`}
-        onMouseEnter={() => setShowDelete(true)}
-        onMouseLeave={() => setShowDelete(false)}
-        data-testid={`task-card-${task.id}`}
-      >
+    <motion.div
+      ref={ref}
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ 
+        opacity: isDeleting || isCompleting ? 0 : 1, 
+        y: 0,
+        x: isDeleting ? -20 : 0,
+        scale: isCompleting ? 0.95 : 1,
+      }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ duration: 0.2 }}
+      className={`group relative flex items-start gap-3 p-4 bg-card border border-card-border rounded-lg shadow-sm transition-colors hover-elevate ${
+        task.completed ? "opacity-60" : ""
+      }`}
+      onMouseEnter={() => setShowDelete(true)}
+      onMouseLeave={() => setShowDelete(false)}
+      data-testid={`task-card-${task.id}`}
+    >
         <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-lg ${categoryColor}`} />
 
         <div className="pt-0.5">
@@ -137,6 +137,5 @@ export function TaskCard({ task, onComplete, onDelete, isCompleting }: TaskCardP
           )}
         </AnimatePresence>
       </motion.div>
-    </AnimatePresence>
   );
-}
+});

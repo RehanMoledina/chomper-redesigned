@@ -1,10 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { TaskInput } from "@/components/task-input";
 import { TaskList } from "@/components/task-list";
 import { CelebrationOverlay } from "@/components/celebration-overlay";
 import { MonsterCompanion } from "@/components/monster-companion";
+import { CategoryFilter } from "@/components/category-filter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import type { Task, InsertTask } from "@shared/schema";
@@ -14,6 +15,7 @@ export default function Home() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const [celebrationMessage, setCelebrationMessage] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
 
   const { data: tasks = [], isLoading, error } = useQuery<Task[]>({
     queryKey: ["/api/tasks"],
@@ -119,6 +121,20 @@ export default function Home() {
     return completedDate.toDateString() === today.toDateString();
   }).length;
 
+  const taskCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    tasks.filter(t => !t.completed).forEach((task) => {
+      const cat = task.category || "other";
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    return counts;
+  }, [tasks]);
+
+  const filteredTasks = useMemo(() => {
+    if (selectedCategory === "all") return tasks;
+    return tasks.filter((task) => (task.category || "other") === selectedCategory);
+  }, [tasks, selectedCategory]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background pb-20">
@@ -185,8 +201,14 @@ export default function Home() {
           isLoading={addTaskMutation.isPending}
         />
 
+        <CategoryFilter
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+          taskCounts={taskCounts}
+        />
+
         <TaskList
-          tasks={tasks}
+          tasks={filteredTasks}
           onComplete={handleCompleteTask}
           onDelete={handleDeleteTask}
           completingTaskId={completingTaskId}
