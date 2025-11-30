@@ -3,6 +3,7 @@ import { Calendar, Tag, Repeat, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -34,6 +35,7 @@ const repeatPatterns = [
 
 export function EditTaskDialog({ task, open, onOpenChange, onSave, isSaving }: EditTaskDialogProps) {
   const [title, setTitle] = useState("");
+  const [notes, setNotes] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [category, setCategory] = useState("personal");
   const [repeatPattern, setRepeatPattern] = useState("none");
@@ -42,6 +44,7 @@ export function EditTaskDialog({ task, open, onOpenChange, onSave, isSaving }: E
   useEffect(() => {
     if (task) {
       setTitle(task.title);
+      setNotes(task.notes || "");
       setDueDate(task.dueDate ? new Date(task.dueDate) : undefined);
       setCategory(task.category || "personal");
       setRepeatPattern(task.isRecurring && task.recurringPattern ? task.recurringPattern : "none");
@@ -55,6 +58,7 @@ export function EditTaskDialog({ task, open, onOpenChange, onSave, isSaving }: E
     
     onSave(task.id, {
       title: title.trim(),
+      notes: notes.trim() || null,
       category,
       dueDate: dueDate || null,
       isRecurring,
@@ -86,6 +90,18 @@ export function EditTaskDialog({ task, open, onOpenChange, onSave, isSaving }: E
               placeholder="What needs to be done?"
               className="w-full"
               data-testid="input-edit-title"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-notes">Notes</Label>
+            <Textarea
+              id="edit-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add any additional details..."
+              className="min-h-[80px] resize-none"
+              data-testid="input-edit-notes"
             />
           </div>
 

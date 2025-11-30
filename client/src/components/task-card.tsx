@@ -1,6 +1,6 @@
 import { useState, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Calendar, Repeat, Pencil } from "lucide-react";
+import { Trash2, Calendar, Repeat, Pencil, FileText } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { format, isToday, isTomorrow, isPast, isValid } from "date-fns";
@@ -105,6 +105,16 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
           >
             {task.title}
           </p>
+
+          {task.notes && (
+            <p
+              className="text-sm text-muted-foreground mt-1 line-clamp-2"
+              data-testid={`text-task-notes-${task.id}`}
+            >
+              <FileText className="inline-block h-3 w-3 mr-1 -mt-0.5" />
+              {task.notes}
+            </p>
+          )}
 
           {(dueDateText || task.isRecurring) && (
             <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">

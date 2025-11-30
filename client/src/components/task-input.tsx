@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Plus, Calendar, Tag, Repeat } from "lucide-react";
+import { Plus, Calendar, Tag, Repeat, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -29,10 +30,12 @@ const repeatPatterns = [
 
 export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
   const [title, setTitle] = useState("");
+  const [notes, setNotes] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [category, setCategory] = useState("personal");
   const [repeatPattern, setRepeatPattern] = useState("none");
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -45,6 +48,7 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
       title: title.trim(),
       completed: false,
       category,
+      notes: notes.trim() || null,
       dueDate: dueDate || null,
       priority: "medium",
       isRecurring,
@@ -52,10 +56,12 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
     });
 
     setTitle("");
+    setNotes("");
     setDueDate(undefined);
     setCategory("personal");
     setRepeatPattern("none");
     setIsExpanded(false);
+    setShowNotes(false);
   };
 
   const selectedCategory = categories.find(c => c.value === category);
@@ -143,7 +149,19 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
               </SelectContent>
             </Select>
 
-            {(dueDate || repeatPattern !== "none") && (
+            <Button
+              type="button"
+              variant={showNotes || notes ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setShowNotes(!showNotes)}
+              className="h-8 gap-1.5 text-xs font-normal"
+              data-testid="button-toggle-notes"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Notes
+            </Button>
+
+            {(dueDate || repeatPattern !== "none" || notes) && (
               <Button
                 type="button"
                 variant="ghost"
@@ -151,12 +169,26 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
                 onClick={() => {
                   setDueDate(undefined);
                   setRepeatPattern("none");
+                  setNotes("");
+                  setShowNotes(false);
                 }}
                 className="h-8 px-2 text-xs text-muted-foreground"
               >
                 Clear
               </Button>
             )}
+          </div>
+        )}
+
+        {isExpanded && showNotes && (
+          <div className="mt-2 px-1">
+            <Textarea
+              placeholder="Add notes..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="min-h-[60px] text-sm resize-none"
+              data-testid="input-task-notes"
+            />
           </div>
         )}
       </div>
