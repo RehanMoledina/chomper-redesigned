@@ -1,0 +1,142 @@
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Check, Trash2, Calendar } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { format, isToday, isTomorrow, isPast, isValid } from "date-fns";
+import type { Task } from "@shared/schema";
+
+interface TaskCardProps {
+  task: Task;
+  onComplete: (id: string) => void;
+  onDelete: (id: string) => void;
+  isCompleting?: boolean;
+}
+
+const categoryColors: Record<string, string> = {
+  personal: "bg-blue-500",
+  work: "bg-purple-500",
+  shopping: "bg-amber-500",
+  health: "bg-emerald-500",
+  other: "bg-gray-500",
+};
+
+export function TaskCard({ task, onComplete, onDelete, isCompleting }: TaskCardProps) {
+  const [showDelete, setShowDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleComplete = () => {
+    if (!task.completed) {
+      onComplete(task.id);
+    }
+  };
+
+  const handleDelete = () => {
+    setIsDeleting(true);
+    setTimeout(() => {
+      onDelete(task.id);
+    }, 300);
+  };
+
+  const formatDueDate = (date: Date | null) => {
+    if (!date) return null;
+    
+    const dateObj = new Date(date);
+    if (!isValid(dateObj)) return null;
+    
+    if (isToday(dateObj)) return "Today";
+    if (isTomorrow(dateObj)) return "Tomorrow";
+    return format(dateObj, "MMM d");
+  };
+
+  const getDueDateColor = (date: Date | null) => {
+    if (!date) return "";
+    const dateObj = new Date(date);
+    if (!isValid(dateObj)) return "";
+    
+    if (isPast(dateObj) && !isToday(dateObj)) return "text-destructive bg-destructive/10";
+    if (isToday(dateObj)) return "text-amber-600 dark:text-amber-400 bg-amber-500/10";
+    return "text-muted-foreground bg-muted";
+  };
+
+  const dueDateText = formatDueDate(task.dueDate);
+  const categoryColor = categoryColors[task.category || "other"] || categoryColors.other;
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        layout
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ 
+          opacity: isDeleting || isCompleting ? 0 : 1, 
+          y: 0,
+          x: isDeleting ? -20 : 0,
+          scale: isCompleting ? 0.95 : 1,
+        }}
+        exit={{ opacity: 0, x: -20 }}
+        transition={{ duration: 0.2 }}
+        className={`group relative flex items-start gap-3 p-4 bg-card border border-card-border rounded-lg shadow-sm transition-colors hover-elevate ${
+          task.completed ? "opacity-60" : ""
+        }`}
+        onMouseEnter={() => setShowDelete(true)}
+        onMouseLeave={() => setShowDelete(false)}
+        data-testid={`task-card-${task.id}`}
+      >
+        <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-lg ${categoryColor}`} />
+
+        <div className="pt-0.5">
+          <Checkbox
+            checked={task.completed}
+            onCheckedChange={handleComplete}
+            className="h-5 w-5 rounded-md border-2 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+            data-testid={`checkbox-task-${task.id}`}
+          />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p
+            className={`text-base leading-relaxed break-words ${
+              task.completed ? "line-through text-muted-foreground" : "text-foreground"
+            }`}
+            data-testid={`text-task-title-${task.id}`}
+          >
+            {task.title}
+          </p>
+
+          {dueDateText && (
+            <div className="flex items-center gap-1 mt-1.5">
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getDueDateColor(task.dueDate)}`}
+                data-testid={`badge-due-date-${task.id}`}
+              >
+                <Calendar className="h-3 w-3" />
+                {dueDateText}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <AnimatePresence>
+          {(showDelete || task.completed) && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="shrink-0"
+            >
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleDelete}
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                data-testid={`button-delete-task-${task.id}`}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </AnimatePresence>
+  );
+}

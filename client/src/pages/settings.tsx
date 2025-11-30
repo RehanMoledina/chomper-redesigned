@@ -1,0 +1,72 @@
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { SettingsView } from "@/components/settings-view";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import type { Task } from "@shared/schema";
+
+export default function Settings() {
+  const { toast } = useToast();
+
+  const { data: tasks = [], isLoading } = useQuery<Task[]>({
+    queryKey: ["/api/tasks"],
+  });
+
+  const clearCompletedMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", "/api/tasks/completed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Cleared",
+        description: "All completed tasks have been removed.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to clear completed tasks. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const completedCount = tasks.filter((t) => t.completed).length;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background pb-20">
+        <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+          <header className="text-center">
+            <Skeleton className="h-8 w-32 mx-auto" />
+            <Skeleton className="h-4 w-48 mx-auto mt-2" />
+          </header>
+          <Skeleton className="h-32 w-full rounded-lg" />
+          <Skeleton className="h-32 w-full rounded-lg" />
+          <Skeleton className="h-20 w-full rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background pb-20">
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+        <header className="text-center">
+          <h1 className="text-2xl font-semibold text-foreground" data-testid="text-page-title">
+            Settings
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Customize your experience
+          </p>
+        </header>
+
+        <SettingsView
+          onClearCompleted={() => clearCompletedMutation.mutate()}
+          completedCount={completedCount}
+        />
+      </div>
+    </div>
+  );
+}
