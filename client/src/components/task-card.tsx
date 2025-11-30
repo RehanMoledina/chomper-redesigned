@@ -1,6 +1,6 @@
 import { useState, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Calendar, Repeat } from "lucide-react";
+import { Trash2, Calendar, Repeat, Pencil } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { format, isToday, isTomorrow, isPast, isValid } from "date-fns";
@@ -10,6 +10,7 @@ interface TaskCardProps {
   task: Task;
   onComplete: (id: string) => void;
   onDelete: (id: string) => void;
+  onEdit?: (task: Task) => void;
   isCompleting?: boolean;
 }
 
@@ -21,8 +22,8 @@ const categoryColors: Record<string, string> = {
   other: "bg-gray-500",
 };
 
-export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCard({ task, onComplete, onDelete, isCompleting }, ref) {
-  const [showDelete, setShowDelete] = useState(false);
+export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCard({ task, onComplete, onDelete, onEdit, isCompleting }, ref) {
+  const [showActions, setShowActions] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleComplete = () => {
@@ -78,8 +79,8 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
       className={`group relative flex items-start gap-3 p-4 bg-card border border-card-border rounded-lg shadow-sm transition-colors hover-elevate ${
         task.completed ? "opacity-60" : ""
       }`}
-      onMouseEnter={() => setShowDelete(true)}
-      onMouseLeave={() => setShowDelete(false)}
+      onMouseEnter={() => setShowActions(true)}
+      onMouseLeave={() => setShowActions(false)}
       data-testid={`task-card-${task.id}`}
     >
         <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-lg ${categoryColor}`} />
@@ -128,13 +129,24 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
         </div>
 
         <AnimatePresence>
-          {(showDelete || task.completed) && (
+          {(showActions || task.completed) && (
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
-              className="shrink-0"
+              className="shrink-0 flex items-center gap-1"
             >
+              {!task.completed && onEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onEdit(task)}
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  data-testid={`button-edit-task-${task.id}`}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"

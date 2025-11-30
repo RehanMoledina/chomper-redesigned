@@ -6,6 +6,7 @@ import { TaskList } from "@/components/task-list";
 import { CelebrationOverlay } from "@/components/celebration-overlay";
 import { MonsterCompanion } from "@/components/monster-companion";
 import { CategoryFilter } from "@/components/category-filter";
+import { EditTaskDialog } from "@/components/edit-task-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useMonster } from "@/hooks/use-monster";
@@ -18,6 +19,8 @@ export default function Home() {
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const [celebrationMessage, setCelebrationMessage] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const { data: tasks = [], isLoading, error } = useQuery<Task[]>({
     queryKey: ["/api/tasks"],
@@ -106,6 +109,29 @@ export default function Home() {
     },
   });
 
+  const editTaskMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Task> }) => {
+      const res = await apiRequest("PATCH", `/api/tasks/${id}`, updates);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      setEditDialogOpen(false);
+      setEditingTask(null);
+      toast({
+        title: "Updated",
+        description: "Task has been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update task. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddTask = useCallback(
     (task: Omit<InsertTask, "id" | "createdAt" | "completedAt">) => {
       addTaskMutation.mutate(task);
@@ -125,6 +151,18 @@ export default function Home() {
       deleteTaskMutation.mutate(id);
     },
     [deleteTaskMutation]
+  );
+
+  const handleEditTask = useCallback((task: Task) => {
+    setEditingTask(task);
+    setEditDialogOpen(true);
+  }, []);
+
+  const handleSaveEdit = useCallback(
+    (taskId: string, updates: Partial<Task>) => {
+      editTaskMutation.mutate({ id: taskId, updates });
+    },
+    [editTaskMutation]
   );
 
   const handleCelebrationComplete = useCallback(() => {
@@ -231,9 +269,18 @@ export default function Home() {
           tasks={filteredTasks}
           onComplete={handleCompleteTask}
           onDelete={handleDeleteTask}
+          onEdit={handleEditTask}
           completingTaskId={completingTaskId}
         />
       </div>
+
+      <EditTaskDialog
+        task={editingTask}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSave={handleSaveEdit}
+        isSaving={editTaskMutation.isPending}
+      />
     </div>
   );
 }

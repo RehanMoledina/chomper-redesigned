@@ -9,6 +9,7 @@ interface TaskListProps {
   tasks: Task[];
   onComplete: (id: string) => void;
   onDelete: (id: string) => void;
+  onEdit?: (task: Task) => void;
   completingTaskId?: string | null;
 }
 
@@ -17,7 +18,7 @@ type TaskGroup = {
   tasks: Task[];
 };
 
-export function TaskList({ tasks, onComplete, onDelete, completingTaskId }: TaskListProps) {
+export function TaskList({ tasks, onComplete, onDelete, onEdit, completingTaskId }: TaskListProps) {
   const groupedTasks = useMemo(() => {
     const today = startOfDay(new Date());
     const groups: TaskGroup[] = [];
@@ -115,6 +116,7 @@ export function TaskList({ tasks, onComplete, onDelete, completingTaskId }: Task
                     task={task}
                     onComplete={onComplete}
                     onDelete={onDelete}
+                    onEdit={onEdit}
                     isCompleting={completingTaskId === task.id}
                   />
                 ))}
@@ -141,6 +143,7 @@ export function TaskList({ tasks, onComplete, onDelete, completingTaskId }: Task
                   task={task}
                   onComplete={onComplete}
                   onDelete={onDelete}
+                  onEdit={onEdit}
                   isCompleting={completingTaskId === task.id}
                 />
               ))}
