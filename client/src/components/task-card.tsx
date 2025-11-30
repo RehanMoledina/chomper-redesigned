@@ -1,6 +1,6 @@
 import { useState, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Calendar } from "lucide-react";
+import { Trash2, Calendar, Repeat } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { format, isToday, isTomorrow, isPast, isValid } from "date-fns";
@@ -103,15 +103,26 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
             {task.title}
           </p>
 
-          {dueDateText && (
-            <div className="flex items-center gap-1 mt-1.5">
-              <span
-                className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getDueDateColor(task.dueDate)}`}
-                data-testid={`badge-due-date-${task.id}`}
-              >
-                <Calendar className="h-3 w-3" />
-                {dueDateText}
-              </span>
+          {(dueDateText || task.isRecurring) && (
+            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+              {dueDateText && (
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getDueDateColor(task.dueDate)}`}
+                  data-testid={`badge-due-date-${task.id}`}
+                >
+                  <Calendar className="h-3 w-3" />
+                  {dueDateText}
+                </span>
+              )}
+              {task.isRecurring && (
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-primary/10 text-primary"
+                  data-testid={`badge-recurring-${task.id}`}
+                >
+                  <Repeat className="h-3 w-3" />
+                  {task.recurringPattern}
+                </span>
+              )}
             </div>
           )}
         </div>

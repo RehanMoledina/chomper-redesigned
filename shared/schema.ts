@@ -18,6 +18,9 @@ export const tasks = pgTable("tasks", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   completedAt: timestamp("completed_at"),
   priority: text("priority").default("medium"),
+  isRecurring: boolean("is_recurring").notNull().default(false),
+  recurringPattern: text("recurring_pattern"),
+  nextDueDate: timestamp("next_due_date"),
 });
 
 export const monsterStats = pgTable("monster_stats", {
@@ -34,13 +37,26 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
 });
 
-export const insertTaskSchema = createInsertSchema(tasks).omit({
+const dateTransform = z.union([
+  z.date(),
+  z.string().transform((str) => str ? new Date(str) : null),
+  z.null(),
+]).optional();
+
+export const insertTaskSchema = createInsertSchema(tasks, {
+  dueDate: dateTransform,
+  nextDueDate: dateTransform,
+}).omit({
   id: true,
   createdAt: true,
   completedAt: true,
 });
 
-export const updateTaskSchema = createInsertSchema(tasks).omit({
+export const updateTaskSchema = createInsertSchema(tasks, {
+  dueDate: dateTransform,
+  completedAt: dateTransform,
+  nextDueDate: dateTransform,
+}).omit({
   id: true,
   createdAt: true,
 }).partial();

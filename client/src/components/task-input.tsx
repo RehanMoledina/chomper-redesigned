@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Calendar, Tag } from "lucide-react";
+import { Plus, Calendar, Tag, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,10 +21,18 @@ const categories = [
   { value: "other", label: "Other", color: "bg-gray-500" },
 ];
 
+const repeatPatterns = [
+  { value: "none", label: "No repeat" },
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+];
+
 export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [category, setCategory] = useState("personal");
+  const [repeatPattern, setRepeatPattern] = useState("none");
   const [isExpanded, setIsExpanded] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
@@ -32,17 +40,22 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
     e.preventDefault();
     if (!title.trim()) return;
 
+    const isRecurring = repeatPattern !== "none";
+    
     onAddTask({
       title: title.trim(),
       completed: false,
       category,
       dueDate: dueDate || null,
       priority: "medium",
+      isRecurring,
+      recurringPattern: isRecurring ? repeatPattern : null,
     });
 
     setTitle("");
     setDueDate(undefined);
     setCategory("personal");
+    setRepeatPattern("none");
     setIsExpanded(false);
   };
 
@@ -117,15 +130,32 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
               </SelectContent>
             </Select>
 
-            {dueDate && (
+            <Select value={repeatPattern} onValueChange={setRepeatPattern}>
+              <SelectTrigger className="h-8 w-auto gap-1.5 text-xs" data-testid="select-repeat">
+                <Repeat className="h-3.5 w-3.5" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {repeatPatterns.map((pattern) => (
+                  <SelectItem key={pattern.value} value={pattern.value} data-testid={`option-repeat-${pattern.value}`}>
+                    {pattern.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {(dueDate || repeatPattern !== "none") && (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setDueDate(undefined)}
+                onClick={() => {
+                  setDueDate(undefined);
+                  setRepeatPattern("none");
+                }}
                 className="h-8 px-2 text-xs text-muted-foreground"
               >
-                Clear date
+                Clear
               </Button>
             )}
           </div>

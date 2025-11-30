@@ -54,6 +54,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTask(id: string, taskUpdate: UpdateTask): Promise<Task | undefined> {
+    const existingTask = await this.getTask(id);
+    if (!existingTask) return undefined;
+
     const updateData: Record<string, unknown> = { ...taskUpdate };
     
     if (taskUpdate.completed === true) {
@@ -68,9 +71,49 @@ export class DatabaseStorage implements IStorage {
     
     if (updated && taskUpdate.completed === true) {
       await this.incrementTasksChomped();
+      
+      if (existingTask.isRecurring && existingTask.recurringPattern) {
+        await this.createNextRecurringTask(existingTask);
+      }
     }
     
     return updated || undefined;
+  }
+
+  private async createNextRecurringTask(task: Task): Promise<Task | undefined> {
+    const baseDate = task.dueDate ? new Date(task.dueDate) : new Date();
+    let nextDate: Date;
+
+    switch (task.recurringPattern) {
+      case "daily":
+        nextDate = new Date(baseDate);
+        nextDate.setDate(nextDate.getDate() + 1);
+        break;
+      case "weekly":
+        nextDate = new Date(baseDate);
+        nextDate.setDate(nextDate.getDate() + 7);
+        break;
+      case "monthly":
+        nextDate = new Date(baseDate);
+        nextDate.setMonth(nextDate.getMonth() + 1);
+        break;
+      default:
+        return undefined;
+    }
+
+    const [newTask] = await db
+      .insert(tasks)
+      .values({
+        title: task.title,
+        category: task.category,
+        priority: task.priority,
+        dueDate: nextDate,
+        isRecurring: true,
+        recurringPattern: task.recurringPattern,
+      })
+      .returning();
+
+    return newTask;
   }
 
   async deleteTask(id: string): Promise<boolean> {
