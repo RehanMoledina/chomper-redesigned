@@ -16,7 +16,6 @@ interface TaskInputProps {
 const categories = [
   { value: "personal", label: "Personal", color: "bg-blue-500" },
   { value: "work", label: "Work", color: "bg-purple-500" },
-  { value: "shopping", label: "Shopping", color: "bg-amber-500" },
   { value: "health", label: "Health", color: "bg-emerald-500" },
   { value: "other", label: "Other", color: "bg-gray-500" },
 ];

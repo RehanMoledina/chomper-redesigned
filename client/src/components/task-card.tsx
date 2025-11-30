@@ -17,7 +17,6 @@ interface TaskCardProps {
 const categoryColors: Record<string, string> = {
   personal: "bg-blue-500",
   work: "bg-purple-500",
-  shopping: "bg-amber-500",
   health: "bg-emerald-500",
   other: "bg-gray-500",
 };
