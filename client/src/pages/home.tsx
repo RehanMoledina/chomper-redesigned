@@ -8,9 +8,12 @@ import { MonsterCompanion } from "@/components/monster-companion";
 import { CategoryFilter } from "@/components/category-filter";
 import { EditTaskDialog } from "@/components/edit-task-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useMonster } from "@/hooks/use-monster";
 import type { Task, InsertTask } from "@shared/schema";
+
+type ViewMode = "today" | "all";
 
 export default function Home() {
   const { toast } = useToast();
@@ -19,6 +22,7 @@ export default function Home() {
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const [celebrationMessage, setCelebrationMessage] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("today");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
@@ -265,12 +269,34 @@ export default function Home() {
           taskCounts={taskCounts}
         />
 
+        <div className="flex gap-1 p-1 bg-muted rounded-lg" data-testid="view-mode-toggle">
+          <Button
+            variant={viewMode === "today" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("today")}
+            className="flex-1"
+            data-testid="button-view-today"
+          >
+            Today
+          </Button>
+          <Button
+            variant={viewMode === "all" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("all")}
+            className="flex-1"
+            data-testid="button-view-all"
+          >
+            All
+          </Button>
+        </div>
+
         <TaskList
           tasks={filteredTasks}
           onComplete={handleCompleteTask}
           onDelete={handleDeleteTask}
           onEdit={handleEditTask}
           completingTaskId={completingTaskId}
+          viewMode={viewMode}
         />
       </div>
 

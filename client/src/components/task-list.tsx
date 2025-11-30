@@ -2,8 +2,10 @@ import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TaskCard } from "./task-card";
 import { MonsterCompanion } from "./monster-companion";
-import { isToday, isBefore, startOfDay, isAfter, isValid } from "date-fns";
+import { isToday, isBefore, startOfDay, isValid } from "date-fns";
 import type { Task } from "@shared/schema";
+
+type ViewMode = "today" | "all";
 
 interface TaskListProps {
   tasks: Task[];
@@ -11,6 +13,7 @@ interface TaskListProps {
   onDelete: (id: string) => void;
   onEdit?: (task: Task) => void;
   completingTaskId?: string | null;
+  viewMode?: ViewMode;
 }
 
 type TaskGroup = {
@@ -18,14 +21,14 @@ type TaskGroup = {
   tasks: Task[];
 };
 
-export function TaskList({ tasks, onComplete, onDelete, onEdit, completingTaskId }: TaskListProps) {
+export function TaskList({ tasks, onComplete, onDelete, onEdit, completingTaskId, viewMode = "today" }: TaskListProps) {
   const groupedTasks = useMemo(() => {
     const today = startOfDay(new Date());
     const groups: TaskGroup[] = [];
 
     const overdue: Task[] = [];
     const todayTasks: Task[] = [];
-    const upcoming: Task[] = [];
+    const futureTasks: Task[] = [];
     const noDueDate: Task[] = [];
     const completed: Task[] = [];
 
@@ -53,28 +56,31 @@ export function TaskList({ tasks, onComplete, onDelete, onEdit, completingTaskId
       } else if (isToday(dueDate)) {
         todayTasks.push(task);
       } else {
-        upcoming.push(task);
+        futureTasks.push(task);
       }
     });
 
-    if (overdue.length > 0) {
-      groups.push({ title: "Overdue", tasks: overdue });
+    if (viewMode === "today") {
+      const pendingTasks = [...overdue, ...todayTasks, ...noDueDate];
+      if (pendingTasks.length > 0) {
+        groups.push({ title: "Tasks", tasks: pendingTasks });
+      }
+    } else {
+      if (overdue.length > 0) {
+        groups.push({ title: "Overdue", tasks: overdue });
+      }
+      const allPending = [...todayTasks, ...futureTasks, ...noDueDate];
+      if (allPending.length > 0) {
+        groups.push({ title: "Tasks", tasks: allPending });
+      }
     }
-    if (todayTasks.length > 0) {
-      groups.push({ title: "Today", tasks: todayTasks });
-    }
-    if (upcoming.length > 0) {
-      groups.push({ title: "Upcoming", tasks: upcoming });
-    }
-    if (noDueDate.length > 0) {
-      groups.push({ title: "Anytime", tasks: noDueDate });
-    }
+
     if (completed.length > 0) {
       groups.push({ title: "Completed", tasks: completed });
     }
 
     return groups;
-  }, [tasks]);
+  }, [tasks, viewMode]);
 
   const pendingCount = tasks.filter(t => !t.completed).length;
   const completedCount = tasks.filter(t => t.completed).length;
