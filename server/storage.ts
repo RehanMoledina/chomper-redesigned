@@ -2,10 +2,11 @@ import {
   type User, type InsertUser, 
   type Task, type InsertTask, type UpdateTask,
   type MonsterStats, type InsertMonsterStats,
-  users, tasks, monsterStats 
+  type Achievement, type InsertAchievement,
+  users, tasks, monsterStats, achievements 
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -21,6 +22,11 @@ export interface IStorage {
   
   getMonsterStats(): Promise<MonsterStats | undefined>;
   updateMonsterStats(stats: Partial<InsertMonsterStats>): Promise<MonsterStats>;
+  
+  getAchievements(): Promise<Achievement[]>;
+  initializeAchievements(): Promise<void>;
+  unlockAchievement(id: string): Promise<Achievement | undefined>;
+  checkAndUnlockAchievements(stats: MonsterStats): Promise<Achievement[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -209,6 +215,74 @@ export class DatabaseStorage implements IStorage {
         happinessLevel: newHappiness,
       })
       .where(eq(monsterStats.id, stats.id));
+  }
+
+  async getAchievements(): Promise<Achievement[]> {
+    return await db.select().from(achievements);
+  }
+
+  async initializeAchievements(): Promise<void> {
+    const existing = await db.select().from(achievements);
+    if (existing.length > 0) return;
+
+    const defaultAchievements: InsertAchievement[] = [
+      { id: "first_chomp", name: "First Bite", description: "Complete your first task", icon: "cookie", requirement: 1, type: "tasks_chomped" },
+      { id: "chomp_10", name: "Getting Hungry", description: "Complete 10 tasks", icon: "utensils", requirement: 10, type: "tasks_chomped" },
+      { id: "chomp_25", name: "Appetite Growing", description: "Complete 25 tasks", icon: "chef-hat", requirement: 25, type: "tasks_chomped" },
+      { id: "chomp_50", name: "Hungry Monster", description: "Complete 50 tasks", icon: "drumstick", requirement: 50, type: "tasks_chomped" },
+      { id: "chomp_100", name: "Feast Master", description: "Complete 100 tasks", icon: "crown", requirement: 100, type: "tasks_chomped" },
+      { id: "streak_3", name: "Hat Trick", description: "Maintain a 3-day streak", icon: "flame", requirement: 3, type: "streak" },
+      { id: "streak_7", name: "Week Warrior", description: "Maintain a 7-day streak", icon: "zap", requirement: 7, type: "streak" },
+      { id: "streak_14", name: "Fortnight Fighter", description: "Maintain a 14-day streak", icon: "star", requirement: 14, type: "streak" },
+      { id: "streak_30", name: "Monthly Master", description: "Maintain a 30-day streak", icon: "trophy", requirement: 30, type: "streak" },
+      { id: "happiness_75", name: "Joyful Journey", description: "Reach 75% happiness", icon: "heart", requirement: 75, type: "happiness" },
+      { id: "happiness_100", name: "Pure Bliss", description: "Reach 100% happiness", icon: "sparkles", requirement: 100, type: "happiness" },
+    ];
+
+    await db.insert(achievements).values(defaultAchievements);
+  }
+
+  async unlockAchievement(id: string): Promise<Achievement | undefined> {
+    const [achievement] = await db.select().from(achievements).where(eq(achievements.id, id));
+    if (!achievement || achievement.unlockedAt) return undefined;
+
+    const [updated] = await db
+      .update(achievements)
+      .set({ unlockedAt: new Date() })
+      .where(eq(achievements.id, id))
+      .returning();
+    
+    return updated;
+  }
+
+  async checkAndUnlockAchievements(stats: MonsterStats): Promise<Achievement[]> {
+    const allAchievements = await this.getAchievements();
+    const newlyUnlocked: Achievement[] = [];
+
+    for (const achievement of allAchievements) {
+      if (achievement.unlockedAt) continue;
+
+      let shouldUnlock = false;
+
+      switch (achievement.type) {
+        case "tasks_chomped":
+          shouldUnlock = stats.tasksChomped >= achievement.requirement;
+          break;
+        case "streak":
+          shouldUnlock = stats.longestStreak >= achievement.requirement;
+          break;
+        case "happiness":
+          shouldUnlock = stats.happinessLevel >= achievement.requirement;
+          break;
+      }
+
+      if (shouldUnlock) {
+        const unlocked = await this.unlockAchievement(achievement.id);
+        if (unlocked) newlyUnlocked.push(unlocked);
+      }
+    }
+
+    return newlyUnlocked;
   }
 }
 

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { StatsView } from "@/components/stats-view";
+import { Achievements } from "@/components/achievements";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Task, MonsterStats } from "@shared/schema";
 
@@ -49,6 +50,8 @@ export default function Stats() {
         </header>
 
         <StatsView tasks={tasks} stats={stats || null} />
+
+        <Achievements />
       </div>
     </div>
   );

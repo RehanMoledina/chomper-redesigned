@@ -112,5 +112,30 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/achievements", async (req, res) => {
+    try {
+      await storage.initializeAchievements();
+      const achievementsList = await storage.getAchievements();
+      res.json(achievementsList);
+    } catch (error) {
+      console.error("Error fetching achievements:", error);
+      res.status(500).json({ error: "Failed to fetch achievements" });
+    }
+  });
+
+  app.post("/api/achievements/check", async (req, res) => {
+    try {
+      const stats = await storage.getMonsterStats();
+      if (!stats) {
+        return res.status(404).json({ error: "Stats not found" });
+      }
+      const newlyUnlocked = await storage.checkAndUnlockAchievements(stats);
+      res.json({ newlyUnlocked });
+    } catch (error) {
+      console.error("Error checking achievements:", error);
+      res.status(500).json({ error: "Failed to check achievements" });
+    }
+  });
+
   return httpServer;
 }

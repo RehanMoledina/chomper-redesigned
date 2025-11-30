@@ -46,7 +46,7 @@ export default function Home() {
     onMutate: (id) => {
       setCompletingTaskId(id);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       const messages = [
         "NOM NOM NOM!",
         "Delicious task!",
@@ -56,6 +56,23 @@ export default function Home() {
       ];
       setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)]);
       setShowCelebration(true);
+      
+      try {
+        const res = await apiRequest("POST", "/api/achievements/check");
+        if (res.ok) {
+          const { newlyUnlocked } = await res.json();
+          if (newlyUnlocked && newlyUnlocked.length > 0) {
+            queryClient.invalidateQueries({ queryKey: ["/api/achievements"] });
+            newlyUnlocked.forEach((achievement: { name: string }) => {
+              toast({
+                title: "Achievement Unlocked!",
+                description: achievement.name,
+              });
+            });
+          }
+        }
+      } catch {
+      }
     },
     onSettled: () => {
       setCompletingTaskId(null);

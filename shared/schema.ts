@@ -32,6 +32,16 @@ export const monsterStats = pgTable("monster_stats", {
   happinessLevel: integer("happiness_level").notNull().default(50),
 });
 
+export const achievements = pgTable("achievements", {
+  id: varchar("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  icon: text("icon").notNull(),
+  requirement: integer("requirement").notNull(),
+  type: text("type").notNull(),
+  unlockedAt: timestamp("unlocked_at"),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -69,6 +79,9 @@ export const updateMonsterStatsSchema = createInsertSchema(monsterStats).omit({
   id: true,
 }).partial();
 
+export const insertAchievementSchema = createInsertSchema(achievements);
+export const updateAchievementSchema = createInsertSchema(achievements).partial();
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
@@ -77,3 +90,5 @@ export type UpdateTask = z.infer<typeof updateTaskSchema>;
 export type MonsterStats = typeof monsterStats.$inferSelect;
 export type InsertMonsterStats = z.infer<typeof insertMonsterStatsSchema>;
 export type UpdateMonsterStats = z.infer<typeof updateMonsterStatsSchema>;
+export type Achievement = typeof achievements.$inferSelect;
+export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
