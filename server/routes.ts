@@ -64,6 +64,16 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/tasks/completed", async (req, res) => {
+    try {
+      const count = await storage.deleteCompletedTasks();
+      res.json({ deleted: count });
+    } catch (error) {
+      console.error("Error deleting completed tasks:", error);
+      res.status(500).json({ error: "Failed to delete completed tasks" });
+    }
+  });
+
   app.delete("/api/tasks/:id", async (req, res) => {
     try {
       const deleted = await storage.deleteTask(req.params.id);
@@ -74,16 +84,6 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting task:", error);
       res.status(500).json({ error: "Failed to delete task" });
-    }
-  });
-
-  app.delete("/api/tasks/completed", async (req, res) => {
-    try {
-      const count = await storage.deleteCompletedTasks();
-      res.json({ deleted: count });
-    } catch (error) {
-      console.error("Error deleting completed tasks:", error);
-      res.status(500).json({ error: "Failed to delete completed tasks" });
     }
   });
 
