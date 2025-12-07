@@ -3,7 +3,8 @@ import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
 import bcrypt from "bcrypt";
 import { storage } from "./storage";
-import { registerSchema, loginSchema } from "@shared/schema";
+import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "@shared/schema";
+import { sendPasswordResetEmail } from "./email";
 
 let sessionMiddleware: ReturnType<typeof session> | null = null;
 
@@ -154,6 +155,91 @@ export async function setupAuth(app: Express) {
     } catch (error) {
       console.error("Get user error:", error);
       res.status(500).json({ message: "Failed to get user" });
+    }
+  });
+
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const parsed = forgotPasswordSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          message: "Invalid input", 
+          errors: parsed.error.issues 
+        });
+      }
+
+      const { email } = parsed.data;
+      const user = await storage.getUserByEmail(email);
+
+      // Always return success to prevent email enumeration
+      if (!user) {
+        return res.json({ message: "If an account with that email exists, we've sent a password reset link." });
+      }
+
+      // Clean up old expired tokens
+      await storage.cleanupExpiredTokens();
+
+      // Create reset token
+      const token = await storage.createPasswordResetToken(user.id);
+
+      // Send email
+      try {
+        await sendPasswordResetEmail(email, token, user.firstName);
+      } catch (emailError) {
+        console.error("Failed to send reset email:", emailError);
+        return res.status(500).json({ message: "Failed to send reset email. Please try again later." });
+      }
+
+      res.json({ message: "If an account with that email exists, we've sent a password reset link." });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ message: "An error occurred. Please try again." });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const parsed = resetPasswordSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          message: "Invalid input", 
+          errors: parsed.error.issues 
+        });
+      }
+
+      const { token, password } = parsed.data;
+
+      // Find the token
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken) {
+        return res.status(400).json({ message: "Invalid or expired reset link" });
+      }
+
+      // Check if token is expired
+      if (new Date() > new Date(resetToken.expiresAt)) {
+        return res.status(400).json({ message: "This reset link has expired. Please request a new one." });
+      }
+
+      // Check if token was already used
+      if (resetToken.usedAt) {
+        return res.status(400).json({ message: "This reset link has already been used" });
+      }
+
+      // Hash new password and update user
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const updated = await storage.updateUserPassword(resetToken.userId, hashedPassword);
+
+      if (!updated) {
+        return res.status(500).json({ message: "Failed to update password" });
+      }
+
+      // Mark token as used
+      await storage.markTokenAsUsed(resetToken.id);
+
+      res.json({ message: "Password reset successfully. You can now log in with your new password." });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ message: "An error occurred. Please try again." });
     }
   });
 }
