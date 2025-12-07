@@ -54,32 +54,66 @@ Preferred communication style: Simple, everyday language.
 
 **Development Mode**: In development, uses Vite's middleware mode for HMR (Hot Module Replacement) with the Express server.
 
+### Authentication
+
+**Replit Auth (OIDC)**: Users authenticate via Replit's OpenID Connect flow, supporting Google, GitHub, X, Apple, and email/password login methods.
+
+**Auth Flow**:
+- `/api/login` - Initiates Replit OAuth login
+- `/api/callback` - OAuth callback endpoint
+- `/api/logout` - Logs user out and clears session
+- `/api/auth/user` - Returns current authenticated user
+
+**Session Management**: PostgreSQL-backed sessions using connect-pg-simple with 7-day TTL. Session secret stored in environment variable.
+
+**Client Auth**: useAuth hook checks authentication state and displays landing page for logged-out users.
+
 ### Database Schema
 
-**PostgreSQL** with three main tables:
+**PostgreSQL** with four main tables:
 
-1. **users** - User authentication (currently basic structure, not fully implemented in auth flow)
-   - id (UUID, primary key)
-   - username (unique)
-   - password (hashed)
+1. **sessions** - Session storage for authentication
+   - sid (primary key)
+   - sess (JSONB)
+   - expire (timestamp)
 
-2. **tasks** - Core task data
+2. **users** - User profiles from Replit Auth
+   - id (varchar, primary key - from OIDC sub claim)
+   - email (varchar, unique)
+   - firstName, lastName (varchar)
+   - profileImageUrl (varchar)
+   - createdAt, updatedAt (timestamp)
+
+3. **tasks** - Core task data (scoped by userId)
    - id (UUID, primary key)
+   - userId (varchar, references users.id)
    - title (text)
    - completed (boolean, default false)
    - category (text: personal, work, shopping, health, other)
+   - notes (text, nullable)
    - dueDate (timestamp, nullable)
    - createdAt (timestamp, auto-generated)
    - completedAt (timestamp, nullable)
    - priority (text, default "medium")
+   - isRecurring (boolean, default false)
+   - recurringPattern (text: daily, weekly, monthly)
+   - scheduledFor (timestamp, for scheduled recurring tasks)
 
-3. **monsterStats** - Gamification metrics
+4. **monsterStats** - Gamification metrics (scoped by userId)
    - id (UUID, primary key)
+   - userId (varchar, references users.id)
    - tasksChomped (integer, total completed)
    - currentStreak (integer, consecutive days)
    - longestStreak (integer, record)
    - lastActiveDate (timestamp)
    - happinessLevel (integer 0-100, default 50)
+
+5. **achievements** - User achievements (scoped by userId)
+   - id (varchar, primary key)
+   - userId (varchar, references users.id)
+   - name, description, icon, type (text)
+   - requirement (integer)
+   - unlockedAt (timestamp, nullable)
 
 **Schema Management**: Drizzle Kit handles migrations. Schema definitions in `shared/schema.ts` are the single source of truth, with generated Zod schemas for validation.
 

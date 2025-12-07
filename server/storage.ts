@@ -1,32 +1,31 @@
 import { 
-  type User, type InsertUser, 
+  type User, type UpsertUser, 
   type Task, type InsertTask, type UpdateTask,
   type MonsterStats, type InsertMonsterStats,
   type Achievement, type InsertAchievement,
   users, tasks, monsterStats, achievements 
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, isNotNull } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  upsertUser(user: UpsertUser): Promise<User>;
   
-  getTasks(): Promise<Task[]>;
-  getTask(id: string): Promise<Task | undefined>;
+  getTasks(userId: string): Promise<Task[]>;
+  getTask(id: string, userId: string): Promise<Task | undefined>;
   createTask(task: InsertTask): Promise<Task>;
-  updateTask(id: string, task: UpdateTask): Promise<Task | undefined>;
-  deleteTask(id: string): Promise<boolean>;
-  deleteCompletedTasks(): Promise<number>;
+  updateTask(id: string, task: UpdateTask, userId: string): Promise<Task | undefined>;
+  deleteTask(id: string, userId: string): Promise<boolean>;
+  deleteCompletedTasks(userId: string): Promise<number>;
   
-  getMonsterStats(): Promise<MonsterStats | undefined>;
-  updateMonsterStats(stats: Partial<InsertMonsterStats>): Promise<MonsterStats>;
+  getMonsterStats(userId: string): Promise<MonsterStats | undefined>;
+  updateMonsterStats(userId: string, stats: Partial<InsertMonsterStats>): Promise<MonsterStats>;
   
-  getAchievements(): Promise<Achievement[]>;
-  initializeAchievements(): Promise<void>;
-  unlockAchievement(id: string): Promise<Achievement | undefined>;
-  checkAndUnlockAchievements(stats: MonsterStats): Promise<Achievement[]>;
+  getAchievements(userId: string): Promise<Achievement[]>;
+  initializeAchievements(userId: string): Promise<void>;
+  unlockAchievement(id: string, oderId: string): Promise<Achievement | undefined>;
+  checkAndUnlockAchievements(userId: string, stats: MonsterStats): Promise<Achievement[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -35,29 +34,43 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const updateData: Partial<UpsertUser> = { updatedAt: new Date() };
+    if (userData.email !== undefined) updateData.email = userData.email;
+    if (userData.firstName !== undefined) updateData.firstName = userData.firstName;
+    if (userData.lastName !== undefined) updateData.lastName = userData.lastName;
+    if (userData.profileImageUrl !== undefined) updateData.profileImageUrl = userData.profileImageUrl;
+    
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: updateData,
+      })
+      .returning();
     return user;
   }
 
-  async getTasks(): Promise<Task[]> {
-    const allTasks = await db.select().from(tasks).orderBy(desc(tasks.createdAt));
+  async getTasks(userId: string): Promise<Task[]> {
+    const allTasks = await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.userId, userId))
+      .orderBy(desc(tasks.createdAt));
     const now = new Date();
     
-    // Filter out tasks that are scheduled for the future
     return allTasks.filter(task => {
       if (!task.scheduledFor) return true;
       return new Date(task.scheduledFor) <= now;
     });
   }
 
-  async getTask(id: string): Promise<Task | undefined> {
-    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+  async getTask(id: string, userId: string): Promise<Task | undefined> {
+    const [task] = await db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
     return task || undefined;
   }
 
@@ -66,8 +79,8 @@ export class DatabaseStorage implements IStorage {
     return newTask;
   }
 
-  async updateTask(id: string, taskUpdate: UpdateTask): Promise<Task | undefined> {
-    const existingTask = await this.getTask(id);
+  async updateTask(id: string, taskUpdate: UpdateTask, userId: string): Promise<Task | undefined> {
+    const existingTask = await this.getTask(id, userId);
     if (!existingTask) return undefined;
 
     const updateData: Record<string, unknown> = { ...taskUpdate };
@@ -83,7 +96,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     if (updated && taskUpdate.completed === true) {
-      await this.incrementTasksChomped();
+      await this.incrementTasksChomped(userId);
       
       if (existingTask.isRecurring && existingTask.recurringPattern) {
         await this.createNextRecurringTask(existingTask);
@@ -114,14 +127,13 @@ export class DatabaseStorage implements IStorage {
         return undefined;
     }
 
-    // Set scheduledFor to midnight (00:00:00) of the next due date
-    // This ensures the task only appears at 12:00 AM on that day
     const scheduledFor = new Date(nextDate);
     scheduledFor.setHours(0, 0, 0, 0);
 
     const [newTask] = await db
       .insert(tasks)
       .values({
+        userId: task.userId,
         title: task.title,
         category: task.category,
         notes: task.notes,
@@ -136,26 +148,33 @@ export class DatabaseStorage implements IStorage {
     return newTask;
   }
 
-  async deleteTask(id: string): Promise<boolean> {
+  async deleteTask(id: string, userId: string): Promise<boolean> {
+    const task = await this.getTask(id, userId);
+    if (!task) return false;
+    
     const result = await db.delete(tasks).where(eq(tasks.id, id)).returning();
     return result.length > 0;
   }
 
-  async deleteCompletedTasks(): Promise<number> {
+  async deleteCompletedTasks(userId: string): Promise<number> {
     const result = await db
       .delete(tasks)
-      .where(eq(tasks.completed, true))
+      .where(and(eq(tasks.completed, true), eq(tasks.userId, userId)))
       .returning();
     return result.length;
   }
 
-  async getMonsterStats(): Promise<MonsterStats | undefined> {
-    const [stats] = await db.select().from(monsterStats);
+  async getMonsterStats(userId: string): Promise<MonsterStats | undefined> {
+    const [stats] = await db
+      .select()
+      .from(monsterStats)
+      .where(eq(monsterStats.userId, userId));
     
     if (!stats) {
       const [newStats] = await db
         .insert(monsterStats)
         .values({
+          userId,
           tasksChomped: 0,
           currentStreak: 0,
           longestStreak: 0,
@@ -168,13 +187,14 @@ export class DatabaseStorage implements IStorage {
     return stats;
   }
 
-  async updateMonsterStats(updates: Partial<InsertMonsterStats>): Promise<MonsterStats> {
-    let stats = await this.getMonsterStats();
+  async updateMonsterStats(userId: string, updates: Partial<InsertMonsterStats>): Promise<MonsterStats> {
+    let stats = await this.getMonsterStats(userId);
     
     if (!stats) {
       const [newStats] = await db
         .insert(monsterStats)
         .values({
+          userId,
           tasksChomped: 0,
           currentStreak: 0,
           longestStreak: 0,
@@ -194,8 +214,8 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  private async incrementTasksChomped(): Promise<void> {
-    const stats = await this.getMonsterStats();
+  private async incrementTasksChomped(userId: string): Promise<void> {
+    const stats = await this.getMonsterStats(userId);
     if (!stats) return;
 
     const today = new Date();
@@ -216,7 +236,6 @@ export class DatabaseStorage implements IStorage {
     }
 
     const newLongestStreak = Math.max(stats.longestStreak, newStreak);
-    
     const newHappiness = Math.min(100, stats.happinessLevel + 5);
 
     await db
@@ -231,33 +250,39 @@ export class DatabaseStorage implements IStorage {
       .where(eq(monsterStats.id, stats.id));
   }
 
-  async getAchievements(): Promise<Achievement[]> {
-    return await db.select().from(achievements);
+  async getAchievements(userId: string): Promise<Achievement[]> {
+    return await db
+      .select()
+      .from(achievements)
+      .where(eq(achievements.userId, userId));
   }
 
-  async initializeAchievements(): Promise<void> {
-    const existing = await db.select().from(achievements);
+  async initializeAchievements(userId: string): Promise<void> {
+    const existing = await this.getAchievements(userId);
     if (existing.length > 0) return;
 
     const defaultAchievements: InsertAchievement[] = [
-      { id: "first_chomp", name: "First Bite", description: "Complete your first task", icon: "cookie", requirement: 1, type: "tasks_chomped" },
-      { id: "chomp_10", name: "Getting Hungry", description: "Complete 10 tasks", icon: "utensils", requirement: 10, type: "tasks_chomped" },
-      { id: "chomp_25", name: "Appetite Growing", description: "Complete 25 tasks", icon: "chef-hat", requirement: 25, type: "tasks_chomped" },
-      { id: "chomp_50", name: "Hungry Monster", description: "Complete 50 tasks", icon: "drumstick", requirement: 50, type: "tasks_chomped" },
-      { id: "chomp_100", name: "Feast Master", description: "Complete 100 tasks", icon: "crown", requirement: 100, type: "tasks_chomped" },
-      { id: "streak_3", name: "Hat Trick", description: "Maintain a 3-day streak", icon: "flame", requirement: 3, type: "streak" },
-      { id: "streak_7", name: "Week Warrior", description: "Maintain a 7-day streak", icon: "zap", requirement: 7, type: "streak" },
-      { id: "streak_14", name: "Fortnight Fighter", description: "Maintain a 14-day streak", icon: "star", requirement: 14, type: "streak" },
-      { id: "streak_30", name: "Monthly Master", description: "Maintain a 30-day streak", icon: "trophy", requirement: 30, type: "streak" },
-      { id: "happiness_75", name: "Joyful Journey", description: "Reach 75% happiness", icon: "heart", requirement: 75, type: "happiness" },
-      { id: "happiness_100", name: "Pure Bliss", description: "Reach 100% happiness", icon: "sparkles", requirement: 100, type: "happiness" },
+      { id: `${userId}_first_chomp`, userId, name: "First Bite", description: "Complete your first task", icon: "cookie", requirement: 1, type: "tasks_chomped" },
+      { id: `${userId}_chomp_10`, userId, name: "Getting Hungry", description: "Complete 10 tasks", icon: "utensils", requirement: 10, type: "tasks_chomped" },
+      { id: `${userId}_chomp_25`, userId, name: "Appetite Growing", description: "Complete 25 tasks", icon: "chef-hat", requirement: 25, type: "tasks_chomped" },
+      { id: `${userId}_chomp_50`, userId, name: "Hungry Monster", description: "Complete 50 tasks", icon: "drumstick", requirement: 50, type: "tasks_chomped" },
+      { id: `${userId}_chomp_100`, userId, name: "Feast Master", description: "Complete 100 tasks", icon: "crown", requirement: 100, type: "tasks_chomped" },
+      { id: `${userId}_streak_3`, userId, name: "Hat Trick", description: "Maintain a 3-day streak", icon: "flame", requirement: 3, type: "streak" },
+      { id: `${userId}_streak_7`, userId, name: "Week Warrior", description: "Maintain a 7-day streak", icon: "zap", requirement: 7, type: "streak" },
+      { id: `${userId}_streak_14`, userId, name: "Fortnight Fighter", description: "Maintain a 14-day streak", icon: "star", requirement: 14, type: "streak" },
+      { id: `${userId}_streak_30`, userId, name: "Monthly Master", description: "Maintain a 30-day streak", icon: "trophy", requirement: 30, type: "streak" },
+      { id: `${userId}_happiness_75`, userId, name: "Joyful Journey", description: "Reach 75% happiness", icon: "heart", requirement: 75, type: "happiness" },
+      { id: `${userId}_happiness_100`, userId, name: "Pure Bliss", description: "Reach 100% happiness", icon: "sparkles", requirement: 100, type: "happiness" },
     ];
 
     await db.insert(achievements).values(defaultAchievements);
   }
 
-  async unlockAchievement(id: string): Promise<Achievement | undefined> {
-    const [achievement] = await db.select().from(achievements).where(eq(achievements.id, id));
+  async unlockAchievement(id: string, userId: string): Promise<Achievement | undefined> {
+    const [achievement] = await db
+      .select()
+      .from(achievements)
+      .where(and(eq(achievements.id, id), eq(achievements.userId, userId)));
     if (!achievement || achievement.unlockedAt) return undefined;
 
     const [updated] = await db
@@ -269,8 +294,8 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async checkAndUnlockAchievements(stats: MonsterStats): Promise<Achievement[]> {
-    const allAchievements = await this.getAchievements();
+  async checkAndUnlockAchievements(userId: string, stats: MonsterStats): Promise<Achievement[]> {
+    const allAchievements = await this.getAchievements(userId);
     const newlyUnlocked: Achievement[] = [];
 
     for (const achievement of allAchievements) {
@@ -291,7 +316,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       if (shouldUnlock) {
-        const unlocked = await this.unlockAchievement(achievement.id);
+        const unlocked = await this.unlockAchievement(achievement.id, userId);
         if (unlocked) newlyUnlocked.push(unlocked);
       }
     }
