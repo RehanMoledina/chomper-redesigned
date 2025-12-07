@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertTaskSchema, updateTaskSchema, updateMonsterStatsSchema } from "@shared/schema";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./auth";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -12,22 +12,10 @@ export async function registerRoutes(
   // Set up authentication
   await setupAuth(app);
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
-
   // Task routes - all protected
   app.get("/api/tasks", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const tasks = await storage.getTasks(userId);
       res.json(tasks);
     } catch (error) {
@@ -38,7 +26,7 @@ export async function registerRoutes(
 
   app.get("/api/tasks/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const task = await storage.getTask(req.params.id, userId);
       if (!task) {
         return res.status(404).json({ error: "Task not found" });
@@ -52,7 +40,7 @@ export async function registerRoutes(
 
   app.post("/api/tasks", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const parsed = insertTaskSchema.safeParse({ ...req.body, userId });
       if (!parsed.success) {
         return res.status(400).json({ error: "Invalid task data", details: parsed.error.issues });
@@ -68,7 +56,7 @@ export async function registerRoutes(
 
   app.patch("/api/tasks/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const parsed = updateTaskSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: "Invalid task data", details: parsed.error.issues });
@@ -87,7 +75,7 @@ export async function registerRoutes(
 
   app.delete("/api/tasks/completed", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const count = await storage.deleteCompletedTasks(userId);
       res.json({ deleted: count });
     } catch (error) {
@@ -98,7 +86,7 @@ export async function registerRoutes(
 
   app.delete("/api/tasks/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const deleted = await storage.deleteTask(req.params.id, userId);
       if (!deleted) {
         return res.status(404).json({ error: "Task not found" });
@@ -113,7 +101,7 @@ export async function registerRoutes(
   // Stats routes - protected
   app.get("/api/stats", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const stats = await storage.getMonsterStats(userId);
       res.json(stats);
     } catch (error) {
@@ -124,7 +112,7 @@ export async function registerRoutes(
 
   app.patch("/api/stats", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const parsed = updateMonsterStatsSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: "Invalid stats data", details: parsed.error.issues });
@@ -141,7 +129,7 @@ export async function registerRoutes(
   // Achievements routes - protected
   app.get("/api/achievements", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       await storage.initializeAchievements(userId);
       const achievementsList = await storage.getAchievements(userId);
       res.json(achievementsList);
@@ -153,7 +141,7 @@ export async function registerRoutes(
 
   app.post("/api/achievements/check", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const stats = await storage.getMonsterStats(userId);
       if (!stats) {
         return res.status(404).json({ error: "Stats not found" });

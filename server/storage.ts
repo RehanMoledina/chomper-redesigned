@@ -10,7 +10,8 @@ import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
-  upsertUser(user: UpsertUser): Promise<User>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: { email: string; password: string; firstName: string | null; lastName: string | null }): Promise<User>;
   
   getTasks(userId: string): Promise<Task[]>;
   getTask(id: string, userId: string): Promise<Task | undefined>;
@@ -34,20 +35,15 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async upsertUser(userData: UpsertUser): Promise<User> {
-    const updateData: Partial<UpsertUser> = { updatedAt: new Date() };
-    if (userData.email !== undefined) updateData.email = userData.email;
-    if (userData.firstName !== undefined) updateData.firstName = userData.firstName;
-    if (userData.lastName !== undefined) updateData.lastName = userData.lastName;
-    if (userData.profileImageUrl !== undefined) updateData.profileImageUrl = userData.profileImageUrl;
-    
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async createUser(userData: { email: string; password: string; firstName: string | null; lastName: string | null }): Promise<User> {
     const [user] = await db
       .insert(users)
       .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: updateData,
-      })
       .returning();
     return user;
   }
