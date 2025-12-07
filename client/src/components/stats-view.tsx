@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { TrendingUp, CheckCircle2, Flame, Target } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MonsterCompanion } from "./monster-companion";
+import { startOfDay, isToday, isPast } from "date-fns";
 import type { Task, MonsterStats } from "@shared/schema";
 
 interface StatsViewProps {
@@ -57,11 +58,19 @@ function ProgressRing({ progress, size = 120, strokeWidth = 10 }: ProgressRingPr
 }
 
 export function StatsView({ tasks, stats }: StatsViewProps) {
+  // Match the "Today" filter logic from task-list.tsx:
+  // Shows overdue tasks, tasks due today, and tasks with no due date
+  const todayStart = startOfDay(new Date());
+  
   const todayTasks = tasks.filter(t => {
-    if (!t.createdAt) return false;
-    const created = new Date(t.createdAt);
-    const today = new Date();
-    return created.toDateString() === today.toDateString();
+    if (!t.dueDate) {
+      // Tasks with no due date are shown in Today view
+      return true;
+    }
+    const dueDate = new Date(t.dueDate);
+    const dueDateStart = startOfDay(dueDate);
+    // Include overdue tasks and tasks due today
+    return dueDateStart <= todayStart;
   });
 
   const completedToday = todayTasks.filter(t => t.completed).length;
