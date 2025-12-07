@@ -12,6 +12,8 @@ import Monster from "@/pages/monster";
 import Stats from "@/pages/stats";
 import Settings from "@/pages/settings";
 import Landing from "@/pages/landing";
+import Login from "@/pages/login";
+import Register from "@/pages/register";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedRouter() {
@@ -41,7 +43,13 @@ function AppContent() {
   }
 
   if (!isAuthenticated) {
-    return <Landing />;
+    return (
+      <Switch>
+        <Route path="/login" component={Login} />
+        <Route path="/register" component={Register} />
+        <Route component={Landing} />
+      </Switch>
+    );
   }
 
   return (

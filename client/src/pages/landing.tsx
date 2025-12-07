@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MonsterCompanion } from "@/components/monster-companion";
@@ -9,7 +10,7 @@ export default function Landing() {
       <header className="w-full py-4 px-6 flex items-center justify-between border-b border-border">
         <h1 className="text-xl font-bold text-primary">Chomper</h1>
         <Button asChild data-testid="button-login">
-          <a href="/api/login">Log In</a>
+          <Link href="/login">Log In</Link>
         </Button>
       </header>
 
@@ -33,7 +34,7 @@ export default function Landing() {
           </div>
 
           <Button size="lg" className="text-lg px-8" asChild data-testid="button-get-started">
-            <a href="/api/login">Get Started</a>
+            <Link href="/register">Get Started</Link>
           </Button>
 
           <div className="grid grid-cols-2 gap-4 pt-8">
