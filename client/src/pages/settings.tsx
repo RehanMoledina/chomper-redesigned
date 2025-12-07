@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { SettingsView } from "@/components/settings-view";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,9 +8,30 @@ import type { Task } from "@shared/schema";
 
 export default function Settings() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const { data: tasks = [], isLoading } = useQuery<Task[]>({
     queryKey: ["/api/tasks"],
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/auth/logout");
+      if (!res.ok) {
+        throw new Error("Logout failed");
+      }
+    },
+    onSuccess: () => {
+      queryClient.clear();
+      window.location.href = "/";
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const clearCompletedMutation = useMutation({
@@ -64,6 +86,7 @@ export default function Settings() {
 
         <SettingsView
           onClearCompleted={() => clearCompletedMutation.mutate()}
+          onLogout={() => logoutMutation.mutate()}
           completedCount={completedCount}
         />
       </div>
