@@ -22,6 +22,7 @@ export const tasks = pgTable("tasks", {
   isRecurring: boolean("is_recurring").notNull().default(false),
   recurringPattern: text("recurring_pattern"),
   nextDueDate: timestamp("next_due_date"),
+  scheduledFor: timestamp("scheduled_for"),
 });
 
 export const monsterStats = pgTable("monster_stats", {
@@ -57,6 +58,7 @@ const dateTransform = z.union([
 export const insertTaskSchema = createInsertSchema(tasks, {
   dueDate: dateTransform,
   nextDueDate: dateTransform,
+  scheduledFor: dateTransform,
 }).omit({
   id: true,
   createdAt: true,
@@ -67,6 +69,7 @@ export const updateTaskSchema = createInsertSchema(tasks, {
   dueDate: dateTransform,
   completedAt: dateTransform,
   nextDueDate: dateTransform,
+  scheduledFor: dateTransform,
 }).omit({
   id: true,
   createdAt: true,

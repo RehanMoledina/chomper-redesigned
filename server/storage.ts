@@ -46,7 +46,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTasks(): Promise<Task[]> {
-    return await db.select().from(tasks).orderBy(desc(tasks.createdAt));
+    const allTasks = await db.select().from(tasks).orderBy(desc(tasks.createdAt));
+    const now = new Date();
+    
+    // Filter out tasks that are scheduled for the future
+    return allTasks.filter(task => {
+      if (!task.scheduledFor) return true;
+      return new Date(task.scheduledFor) <= now;
+    });
   }
 
   async getTask(id: string): Promise<Task | undefined> {
@@ -107,15 +114,22 @@ export class DatabaseStorage implements IStorage {
         return undefined;
     }
 
+    // Set scheduledFor to midnight (00:00:00) of the next due date
+    // This ensures the task only appears at 12:00 AM on that day
+    const scheduledFor = new Date(nextDate);
+    scheduledFor.setHours(0, 0, 0, 0);
+
     const [newTask] = await db
       .insert(tasks)
       .values({
         title: task.title,
         category: task.category,
+        notes: task.notes,
         priority: task.priority,
         dueDate: nextDate,
         isRecurring: true,
         recurringPattern: task.recurringPattern,
+        scheduledFor: scheduledFor,
       })
       .returning();
 
