@@ -67,22 +67,25 @@ export class DatabaseStorage implements IStorage {
 
   async createPasswordResetToken(userId: string): Promise<string> {
     const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
     
     await db.insert(passwordResetTokens).values({
       userId,
-      token,
+      token: tokenHash, // Store hashed token, not plaintext
       expiresAt,
     });
     
-    return token;
+    return token; // Return plaintext token for email
   }
 
   async getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined> {
+    // Hash the incoming token and compare with stored hash
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const [resetToken] = await db
       .select()
       .from(passwordResetTokens)
-      .where(eq(passwordResetTokens.token, token));
+      .where(eq(passwordResetTokens.token, tokenHash));
     return resetToken || undefined;
   }
 
