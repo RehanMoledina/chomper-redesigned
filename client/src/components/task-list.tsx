@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { TaskCard } from "./task-card";
 import { MonsterCompanion } from "./monster-companion";
 import { isToday, isBefore, startOfDay, isValid } from "date-fns";
@@ -13,6 +15,7 @@ interface TaskListProps {
   onUncomplete?: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit?: (task: Task) => void;
+  onClearCompleted?: () => void;
   completingTaskId?: string | null;
   viewMode?: ViewMode;
 }
@@ -22,7 +25,7 @@ type TaskGroup = {
   tasks: Task[];
 };
 
-export function TaskList({ tasks, onComplete, onUncomplete, onDelete, onEdit, completingTaskId, viewMode = "today" }: TaskListProps) {
+export function TaskList({ tasks, onComplete, onUncomplete, onDelete, onEdit, onClearCompleted, completingTaskId, viewMode = "today" }: TaskListProps) {
   const groupedTasks = useMemo(() => {
     const today = startOfDay(new Date());
     const groups: TaskGroup[] = [];
@@ -112,9 +115,23 @@ export function TaskList({ tasks, onComplete, onUncomplete, onDelete, onEdit, co
         
         {groupedTasks.map((group) => (
           <div key={group.title} className="space-y-2">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-1" data-testid={`section-${group.title.toLowerCase()}`}>
-              {group.title} ({group.tasks.length})
-            </h3>
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider" data-testid={`section-${group.title.toLowerCase()}`}>
+                {group.title} ({group.tasks.length})
+              </h3>
+              {group.title === "Completed" && onClearCompleted && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onClearCompleted}
+                  className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+                  data-testid="button-clear-completed"
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Clear
+                </Button>
+              )}
+            </div>
             <div className="space-y-2">
               <AnimatePresence mode="popLayout">
                 {group.tasks.map((task) => (
@@ -140,9 +157,23 @@ export function TaskList({ tasks, onComplete, onUncomplete, onDelete, onEdit, co
     <div className="space-y-6">
       {groupedTasks.map((group) => (
         <div key={group.title} className="space-y-2">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-1" data-testid={`section-${group.title.toLowerCase()}`}>
-            {group.title} ({group.tasks.length})
-          </h3>
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider" data-testid={`section-${group.title.toLowerCase()}`}>
+              {group.title} ({group.tasks.length})
+            </h3>
+            {group.title === "Completed" && onClearCompleted && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClearCompleted}
+                className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+                data-testid="button-clear-completed"
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
           <div className="space-y-2">
             <AnimatePresence mode="popLayout">
               {group.tasks.map((task) => (

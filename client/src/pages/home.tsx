@@ -158,6 +158,27 @@ export default function Home() {
     },
   });
 
+  const clearCompletedMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", "/api/tasks/completed");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Cleared",
+        description: `${data.deleted} completed task${data.deleted !== 1 ? 's' : ''} removed.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to clear completed tasks. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddTask = useCallback(
     (task: Omit<InsertTask, "id" | "createdAt" | "completedAt">) => {
       addTaskMutation.mutate(task);
@@ -202,6 +223,10 @@ export default function Home() {
     setShowCelebration(false);
     setCelebrationMessage("");
   }, []);
+
+  const handleClearCompleted = useCallback(() => {
+    clearCompletedMutation.mutate();
+  }, [clearCompletedMutation]);
 
   const pendingTasks = tasks.filter((t) => !t.completed);
   const completedToday = tasks.filter((t) => {
@@ -325,6 +350,7 @@ export default function Home() {
           onUncomplete={handleUncompleteTask}
           onDelete={handleDeleteTask}
           onEdit={handleEditTask}
+          onClearCompleted={handleClearCompleted}
           completingTaskId={completingTaskId}
           viewMode={viewMode}
         />
