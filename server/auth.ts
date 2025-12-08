@@ -4,7 +4,7 @@ import connectPg from "connect-pg-simple";
 import bcrypt from "bcrypt";
 import { storage } from "./storage";
 import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "@shared/schema";
-import { sendPasswordResetEmail } from "./email";
+import { sendPasswordResetEmail, sendVerificationEmail } from "./email";
 
 let sessionMiddleware: ReturnType<typeof session> | null = null;
 
@@ -74,6 +74,15 @@ export async function setupAuth(app: Express) {
         lastName: lastName || null,
       });
 
+      // Create verification token and send email
+      try {
+        const verificationToken = await storage.createEmailVerificationToken(user.id);
+        await sendVerificationEmail(email, verificationToken, firstName);
+      } catch (emailError) {
+        console.error("Failed to send verification email:", emailError);
+        // Continue with registration even if email fails
+      }
+
       req.session.userId = user.id;
       
       res.status(201).json({ 
@@ -81,6 +90,7 @@ export async function setupAuth(app: Express) {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        emailVerified: false,
       });
     } catch (error) {
       console.error("Registration error:", error);
@@ -117,6 +127,7 @@ export async function setupAuth(app: Express) {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        emailVerified: user.emailVerified,
       });
     } catch (error) {
       console.error("Login error:", error);
@@ -151,10 +162,74 @@ export async function setupAuth(app: Express) {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        emailVerified: user.emailVerified,
       });
     } catch (error) {
       console.error("Get user error:", error);
       res.status(500).json({ message: "Failed to get user" });
+    }
+  });
+
+  app.post("/api/auth/verify-email", async (req, res) => {
+    try {
+      const { token } = req.body;
+      
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({ message: "Verification token is required" });
+      }
+
+      const verificationToken = await storage.getEmailVerificationToken(token);
+      if (!verificationToken) {
+        return res.status(400).json({ message: "Invalid or expired verification link" });
+      }
+
+      if (new Date() > new Date(verificationToken.expiresAt)) {
+        return res.status(400).json({ message: "This verification link has expired. Please request a new one." });
+      }
+
+      if (verificationToken.usedAt) {
+        return res.status(400).json({ message: "This verification link has already been used" });
+      }
+
+      const verified = await storage.verifyUserEmail(verificationToken.userId);
+      if (!verified) {
+        return res.status(500).json({ message: "Failed to verify email" });
+      }
+
+      await storage.markVerificationTokenAsUsed(verificationToken.id);
+
+      res.json({ message: "Email verified successfully!" });
+    } catch (error) {
+      console.error("Verify email error:", error);
+      res.status(500).json({ message: "An error occurred. Please try again." });
+    }
+  });
+
+  app.post("/api/auth/resend-verification", async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      if (user.emailVerified) {
+        return res.status(400).json({ message: "Email is already verified" });
+      }
+
+      await storage.cleanupExpiredTokens();
+
+      const verificationToken = await storage.createEmailVerificationToken(user.id);
+      await sendVerificationEmail(user.email, verificationToken, user.firstName);
+
+      res.json({ message: "Verification email sent. Please check your inbox." });
+    } catch (error) {
+      console.error("Resend verification error:", error);
+      res.status(500).json({ message: "Failed to send verification email. Please try again." });
     }
   });
 
