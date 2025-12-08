@@ -5,7 +5,8 @@ import {
   type Achievement, type InsertAchievement,
   type PasswordResetToken, type EmailVerificationToken,
   type PushSubscription, type InsertPushSubscription, type UpdateNotificationPrefs,
-  users, tasks, monsterStats, achievements, passwordResetTokens, emailVerificationTokens, pushSubscriptions 
+  type DeviceToken, type InsertDeviceToken,
+  users, tasks, monsterStats, achievements, passwordResetTokens, emailVerificationTokens, pushSubscriptions, deviceTokens 
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, lt, isNotNull } from "drizzle-orm";
@@ -49,6 +50,12 @@ export interface IStorage {
   updateNotificationPrefs(userId: string, prefs: UpdateNotificationPrefs): Promise<User | undefined>;
   getUsersWithNotificationsEnabled(): Promise<User[]>;
   getTasksDueTodayForUser(userId: string, timezone: string): Promise<Task[]>;
+  
+  // Native device tokens (FCM/APNs)
+  saveDeviceToken(userId: string, token: string, platform: 'android' | 'ios'): Promise<DeviceToken>;
+  getDeviceTokens(userId: string): Promise<DeviceToken[]>;
+  deleteDeviceToken(token: string): Promise<boolean>;
+  getAllDeviceTokensForNotifications(): Promise<{ userId: string; token: string; platform: string }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -508,6 +515,59 @@ export class DatabaseStorage implements IStorage {
       const taskDue = new Date(task.dueDate);
       return taskDue >= todayStart && taskDue <= todayEnd;
     });
+  }
+
+  async saveDeviceToken(userId: string, token: string, platform: 'android' | 'ios'): Promise<DeviceToken> {
+    // Try to update existing token, otherwise insert
+    const existing = await db
+      .select()
+      .from(deviceTokens)
+      .where(eq(deviceTokens.token, token));
+    
+    if (existing.length > 0) {
+      const [updated] = await db
+        .update(deviceTokens)
+        .set({ userId, platform, updatedAt: new Date() })
+        .where(eq(deviceTokens.token, token))
+        .returning();
+      return updated;
+    }
+    
+    const [deviceToken] = await db
+      .insert(deviceTokens)
+      .values({ userId, token, platform })
+      .returning();
+    return deviceToken;
+  }
+
+  async getDeviceTokens(userId: string): Promise<DeviceToken[]> {
+    return await db
+      .select()
+      .from(deviceTokens)
+      .where(eq(deviceTokens.userId, userId));
+  }
+
+  async deleteDeviceToken(token: string): Promise<boolean> {
+    const result = await db
+      .delete(deviceTokens)
+      .where(eq(deviceTokens.token, token))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getAllDeviceTokensForNotifications(): Promise<{ userId: string; token: string; platform: string }[]> {
+    // Join with users to filter by notification enabled
+    const results = await db
+      .select({
+        userId: deviceTokens.userId,
+        token: deviceTokens.token,
+        platform: deviceTokens.platform,
+      })
+      .from(deviceTokens)
+      .innerJoin(users, eq(deviceTokens.userId, users.id))
+      .where(eq(users.notificationsEnabled, true));
+    
+    return results;
   }
 }
 

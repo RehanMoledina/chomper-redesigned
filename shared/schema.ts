@@ -40,6 +40,16 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Native device tokens for FCM (Android) and APNs (iOS)
+export const deviceTokens = pgTable("device_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  token: text("token").notNull().unique(),
+  platform: text("platform").notNull(), // 'android' | 'ios'
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Auth schemas
 export const registerSchema = createInsertSchema(users, {
   email: z.string().email("Invalid email address"),
@@ -59,6 +69,15 @@ export const registerSchema = createInsertSchema(users, {
 export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({
   id: true,
   createdAt: true,
+});
+
+// Device token schemas for native push
+export const insertDeviceTokenSchema = createInsertSchema(deviceTokens, {
+  platform: z.enum(['android', 'ios']),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const updateNotificationPrefsSchema = z.object({
@@ -197,4 +216,6 @@ export type Achievement = typeof achievements.$inferSelect;
 export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
+export type DeviceToken = typeof deviceTokens.$inferSelect;
+export type InsertDeviceToken = z.infer<typeof insertDeviceTokenSchema>;
 export type UpdateNotificationPrefs = z.infer<typeof updateNotificationPrefsSchema>;

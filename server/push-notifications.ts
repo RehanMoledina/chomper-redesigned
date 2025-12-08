@@ -1,4 +1,5 @@
 import webpush from 'web-push';
+import admin from 'firebase-admin';
 import { storage } from './storage';
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
@@ -7,6 +8,22 @@ const VAPID_EMAIL = process.env.VAPID_EMAIL || 'mailto:chomper@example.com';
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+}
+
+let firebaseInitialized = false;
+const FIREBASE_SERVICE_ACCOUNT = process.env.FIREBASE_SERVICE_ACCOUNT;
+
+if (FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    const serviceAccount = JSON.parse(FIREBASE_SERVICE_ACCOUNT);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    firebaseInitialized = true;
+    console.log('Firebase Admin SDK initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize Firebase Admin SDK:', error);
+  }
 }
 
 const motivationalMessages = [
@@ -33,12 +50,118 @@ function getRandomMessage(messages: string[]): string {
   return messages[Math.floor(Math.random() * messages.length)];
 }
 
-export async function sendDailyNotification(userId: string): Promise<boolean> {
+function getNotificationContent(taskCount: number): { title: string; body: string } {
+  if (taskCount === 0) {
+    return {
+      title: "Good Morning!",
+      body: getRandomMessage(restDayMessages),
+    };
+  } else if (taskCount === 1) {
+    return {
+      title: "1 Task Today!",
+      body: getRandomMessage(motivationalMessages),
+    };
+  } else {
+    return {
+      title: `${taskCount} Tasks Today!`,
+      body: getRandomMessage(motivationalMessages),
+    };
+  }
+}
+
+async function sendWebPushNotification(userId: string, title: string, body: string): Promise<number> {
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
-    console.error('VAPID keys not configured');
-    return false;
+    return 0;
   }
 
+  const subscriptions = await storage.getPushSubscriptions(userId);
+  if (subscriptions.length === 0) {
+    return 0;
+  }
+
+  const payload = JSON.stringify({ title, body, url: '/' });
+  
+  const results = await Promise.allSettled(
+    subscriptions.map(async (sub) => {
+      try {
+        await webpush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.p256dh, auth: sub.auth },
+          },
+          payload
+        );
+        return { success: true };
+      } catch (error: any) {
+        if (error.statusCode === 410 || error.statusCode === 404) {
+          await storage.deletePushSubscription(sub.endpoint);
+        }
+        return { success: false };
+      }
+    })
+  );
+
+  return results.filter((r) => r.status === 'fulfilled' && (r.value as any).success).length;
+}
+
+async function sendFCMNotification(userId: string, title: string, body: string): Promise<number> {
+  if (!firebaseInitialized) {
+    return 0;
+  }
+
+  const deviceTokens = await storage.getDeviceTokens(userId);
+  if (deviceTokens.length === 0) {
+    return 0;
+  }
+
+  let successCount = 0;
+
+  for (const deviceToken of deviceTokens) {
+    try {
+      await admin.messaging().send({
+        token: deviceToken.token,
+        notification: {
+          title,
+          body,
+        },
+        data: {
+          url: '/',
+          click_action: 'FLUTTER_NOTIFICATION_CLICK',
+        },
+        android: {
+          priority: 'high',
+          notification: {
+            sound: 'default',
+            channelId: 'chomper_daily_reminder',
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+              badge: 1,
+            },
+          },
+        },
+      });
+      successCount++;
+    } catch (error: any) {
+      if (
+        error.code === 'messaging/invalid-registration-token' ||
+        error.code === 'messaging/registration-token-not-registered'
+      ) {
+        await storage.deleteDeviceToken(deviceToken.token);
+        console.log(`Removed invalid FCM token for user ${userId}`);
+      } else {
+        console.error(`FCM send error for user ${userId}:`, error.message);
+      }
+    }
+  }
+
+  return successCount;
+}
+
+export async function sendDailyNotification(userId: string): Promise<boolean> {
   const user = await storage.getUser(userId);
   if (!user || !user.notificationsEnabled) {
     return false;
@@ -46,67 +169,19 @@ export async function sendDailyNotification(userId: string): Promise<boolean> {
 
   const timezone = user.timezone || 'UTC';
   const tasks = await storage.getTasksDueTodayForUser(userId, timezone);
-  const subscriptions = await storage.getPushSubscriptions(userId);
+  const { title, body } = getNotificationContent(tasks.length);
 
-  if (subscriptions.length === 0) {
-    return false;
-  }
+  const webPushCount = await sendWebPushNotification(userId, title, body);
+  const fcmCount = await sendFCMNotification(userId, title, body);
 
-  const incompleteTaskCount = tasks.length;
-  
-  let title: string;
-  let body: string;
-
-  if (incompleteTaskCount === 0) {
-    title = "Good Morning!";
-    body = getRandomMessage(restDayMessages);
-  } else if (incompleteTaskCount === 1) {
-    title = "1 Task Today!";
-    body = getRandomMessage(motivationalMessages);
-  } else {
-    title = `${incompleteTaskCount} Tasks Today!`;
-    body = getRandomMessage(motivationalMessages);
-  }
-
-  const payload = JSON.stringify({
-    title,
-    body,
-    url: '/',
-  });
-
-  const results = await Promise.allSettled(
-    subscriptions.map(async (sub) => {
-      try {
-        await webpush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: {
-              p256dh: sub.p256dh,
-              auth: sub.auth,
-            },
-          },
-          payload
-        );
-        return { success: true, endpoint: sub.endpoint };
-      } catch (error: any) {
-        if (error.statusCode === 410 || error.statusCode === 404) {
-          await storage.deletePushSubscription(sub.endpoint);
-          console.log(`Removed invalid subscription: ${sub.endpoint}`);
-        }
-        return { success: false, endpoint: sub.endpoint, error: error.message };
-      }
-    })
-  );
-
-  const successCount = results.filter(
-    (r) => r.status === 'fulfilled' && (r.value as any).success
-  ).length;
-
-  return successCount > 0;
+  return webPushCount > 0 || fcmCount > 0;
 }
 
 export async function sendDailyNotificationsForTimezone(): Promise<void> {
-  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+  const hasWebPush = VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY;
+  const hasFCM = firebaseInitialized;
+
+  if (!hasWebPush && !hasFCM) {
     return;
   }
 

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertTaskSchema, updateTaskSchema, updateMonsterStatsSchema, updateNotificationPrefsSchema } from "@shared/schema";
+import { insertTaskSchema, updateTaskSchema, updateMonsterStatsSchema, updateNotificationPrefsSchema, insertDeviceTokenSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./auth";
 import { z } from "zod";
 
@@ -248,6 +248,43 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating notification preferences:", error);
       res.status(500).json({ error: "Failed to update preferences" });
+    }
+  });
+
+  // Native device token routes (for Capacitor mobile apps)
+  app.post("/api/device-token", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const parsed = insertDeviceTokenSchema.safeParse({ ...req.body, userId });
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid device token data", details: parsed.error.issues });
+      }
+
+      const deviceToken = await storage.saveDeviceToken(
+        userId,
+        parsed.data.token,
+        parsed.data.platform as 'android' | 'ios'
+      );
+      
+      res.status(201).json({ message: "Device token saved", id: deviceToken.id });
+    } catch (error) {
+      console.error("Error saving device token:", error);
+      res.status(500).json({ error: "Failed to save device token" });
+    }
+  });
+
+  app.delete("/api/device-token", isAuthenticated, async (req: any, res) => {
+    try {
+      const { token } = req.body;
+      if (!token) {
+        return res.status(400).json({ error: "Token is required" });
+      }
+
+      await storage.deleteDeviceToken(token);
+      res.json({ message: "Device token removed" });
+    } catch (error) {
+      console.error("Error removing device token:", error);
+      res.status(500).json({ error: "Failed to remove device token" });
     }
   });
 

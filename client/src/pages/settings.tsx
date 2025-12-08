@@ -5,6 +5,7 @@ import { SettingsView } from "@/components/settings-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useState, useEffect } from "react";
 import type { Task } from "@shared/schema";
 
@@ -33,7 +34,9 @@ export default function Settings() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { user } = useAuth();
-  const [pushSupported] = useState(isPushSupported);
+  const nativePush = usePushNotifications();
+  
+  const pushSupported = nativePush.isNative ? nativePush.isSupported : isPushSupported();
 
   const { data: tasks = [], isLoading } = useQuery<Task[]>({
     queryKey: ["/api/tasks"],
@@ -192,7 +195,14 @@ export default function Settings() {
 
   const handleNotificationToggle = async (enabled: boolean) => {
     if (enabled) {
-      const success = await subscribeToPush();
+      let success = false;
+      
+      if (nativePush.isNative) {
+        success = await nativePush.registerForPush();
+      } else {
+        success = await subscribeToPush();
+      }
+      
       if (success) {
         const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         await updateNotificationPrefsMutation.mutateAsync({
@@ -205,7 +215,12 @@ export default function Settings() {
         });
       }
     } else {
-      await unsubscribeFromPush();
+      if (nativePush.isNative) {
+        await nativePush.unregisterFromPush();
+      } else {
+        await unsubscribeFromPush();
+      }
+      
       await updateNotificationPrefsMutation.mutateAsync({
         notificationsEnabled: false,
       });
