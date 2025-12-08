@@ -162,23 +162,34 @@ export class DatabaseStorage implements IStorage {
 
     switch (task.recurringPattern) {
       case "daily":
+        // Daily: next day at midnight
         nextDate = new Date(baseDate);
         nextDate.setDate(nextDate.getDate() + 1);
+        nextDate.setHours(0, 0, 0, 0);
         break;
       case "weekly":
+        // Weekly: next Monday at midnight
         nextDate = new Date(baseDate);
-        nextDate.setDate(nextDate.getDate() + 7);
+        const dayOfWeek = nextDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+        // Calculate days until next Monday
+        // If today is Monday (1), add 7 days to get next Monday
+        // Otherwise, add days to reach next Monday
+        const daysUntilMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
+        nextDate.setDate(nextDate.getDate() + daysUntilMonday);
+        nextDate.setHours(0, 0, 0, 0);
         break;
       case "monthly":
+        // Monthly: 1st of the following month at midnight
         nextDate = new Date(baseDate);
         nextDate.setMonth(nextDate.getMonth() + 1);
+        nextDate.setDate(1);
+        nextDate.setHours(0, 0, 0, 0);
         break;
       default:
         return undefined;
     }
 
     const scheduledFor = new Date(nextDate);
-    scheduledFor.setHours(0, 0, 0, 0);
 
     const [newTask] = await db
       .insert(tasks)
