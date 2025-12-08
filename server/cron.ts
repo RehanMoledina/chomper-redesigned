@@ -8,25 +8,17 @@ export function startNotificationCron(): void {
     return;
   }
 
-  console.log('Starting notification cron job (checks every minute)');
+  console.log('Starting notification cron job (checks every minute for all timezones)');
 
   cronInterval = setInterval(async () => {
-    const now = new Date();
-    
-    if (now.getMinutes() === 0) {
-      console.log(`[${now.toISOString()}] Running notification check for current hour`);
-      try {
-        await sendDailyNotificationsForTimezone();
-      } catch (error) {
-        console.error('Error in notification cron:', error);
-      }
+    try {
+      await sendDailyNotificationsForTimezone();
+    } catch (error) {
+      console.error('Error in notification cron:', error);
     }
   }, 60 * 1000);
 
-  const now = new Date();
-  if (now.getMinutes() === 0) {
-    sendDailyNotificationsForTimezone().catch(console.error);
-  }
+  sendDailyNotificationsForTimezone().catch(console.error);
 }
 
 export function stopNotificationCron(): void {

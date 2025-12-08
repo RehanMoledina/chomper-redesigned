@@ -105,9 +105,8 @@ export async function sendDailyNotification(userId: string): Promise<boolean> {
   return successCount > 0;
 }
 
-export async function sendDailyNotificationsForTimezone(targetHour: number = 7): Promise<void> {
+export async function sendDailyNotificationsForTimezone(): Promise<void> {
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
-    console.log('VAPID keys not configured, skipping notifications');
     return;
   }
 
@@ -116,17 +115,19 @@ export async function sendDailyNotificationsForTimezone(targetHour: number = 7):
   for (const user of usersWithNotifications) {
     const timezone = user.timezone || 'UTC';
     const notificationTime = user.notificationTime || '07:00';
-    const [targetHourStr] = notificationTime.split(':');
-    const userTargetHour = parseInt(targetHourStr, 10);
+    const [targetHourStr, targetMinuteStr] = notificationTime.split(':');
+    const targetHour = parseInt(targetHourStr, 10);
+    const targetMinute = parseInt(targetMinuteStr || '0', 10);
 
     const now = new Date();
     const userNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
     const currentHour = userNow.getHours();
+    const currentMinute = userNow.getMinutes();
 
-    if (currentHour === userTargetHour) {
+    if (currentHour === targetHour && currentMinute === targetMinute) {
       try {
         await sendDailyNotification(user.id);
-        console.log(`Sent daily notification to user ${user.id}`);
+        console.log(`Sent daily notification to user ${user.id} at ${notificationTime} ${timezone}`);
       } catch (error) {
         console.error(`Failed to send notification to user ${user.id}:`, error);
       }

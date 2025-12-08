@@ -1,28 +1,72 @@
-import { Moon, Sun, Monitor, Bell, Volume2, Trash2, Info, LogOut, Mail, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Moon, Sun, Monitor, Bell, Volume2, Trash2, Info, LogOut, Mail, CheckCircle, AlertCircle, Loader2, Globe, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTheme } from "@/components/theme-provider";
+
+interface NotificationPrefs {
+  notificationsEnabled: boolean;
+  notificationTime: string;
+  timezone: string;
+}
 
 interface SettingsViewProps {
   onClearCompleted?: () => void;
   onLogout?: () => void;
   onResendVerification?: () => void;
+  onNotificationToggle?: (enabled: boolean) => void;
+  onTimezoneChange?: (timezone: string) => void;
+  onNotificationTimeChange?: (time: string) => void;
   completedCount?: number;
   userEmail?: string;
   emailVerified?: boolean;
   isResendingVerification?: boolean;
+  notificationPrefs?: NotificationPrefs;
+  isLoadingNotificationPrefs?: boolean;
+  pushSupported?: boolean;
 }
+
+const COMMON_TIMEZONES = [
+  { value: "UTC", label: "UTC" },
+  { value: "America/New_York", label: "Eastern Time (ET)" },
+  { value: "America/Chicago", label: "Central Time (CT)" },
+  { value: "America/Denver", label: "Mountain Time (MT)" },
+  { value: "America/Los_Angeles", label: "Pacific Time (PT)" },
+  { value: "America/Phoenix", label: "Arizona (AZ)" },
+  { value: "America/Anchorage", label: "Alaska (AK)" },
+  { value: "Pacific/Honolulu", label: "Hawaii (HI)" },
+  { value: "Europe/London", label: "London (UK)" },
+  { value: "Europe/Paris", label: "Paris (CET)" },
+  { value: "Europe/Berlin", label: "Berlin (CET)" },
+  { value: "Asia/Tokyo", label: "Tokyo (JST)" },
+  { value: "Asia/Shanghai", label: "Shanghai (CST)" },
+  { value: "Asia/Singapore", label: "Singapore (SGT)" },
+  { value: "Australia/Sydney", label: "Sydney (AEST)" },
+];
+
+const NOTIFICATION_TIMES = [
+  { value: "06:00", label: "6:00 AM" },
+  { value: "07:00", label: "7:00 AM" },
+  { value: "08:00", label: "8:00 AM" },
+  { value: "09:00", label: "9:00 AM" },
+];
 
 export function SettingsView({ 
   onClearCompleted, 
   onLogout, 
   onResendVerification,
+  onNotificationToggle,
+  onTimezoneChange,
+  onNotificationTimeChange,
   completedCount = 0,
   userEmail,
   emailVerified = false,
   isResendingVerification = false,
+  notificationPrefs,
+  isLoadingNotificationPrefs = false,
+  pushSupported = true,
 }: SettingsViewProps) {
   const { theme, setTheme } = useTheme();
 
@@ -65,16 +109,90 @@ export function SettingsView({
           <CardTitle className="text-lg font-semibold">Notifications</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {!pushSupported && (
+            <div className="flex items-start gap-2 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-md">
+              <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                Push notifications are not supported in this browser. Try Chrome, Firefox, or Edge.
+              </p>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Bell className="h-4 w-4 text-muted-foreground" />
               <div>
-                <p className="text-sm font-medium">Push Notifications</p>
-                <p className="text-xs text-muted-foreground">Get reminded about due tasks</p>
+                <p className="text-sm font-medium">Daily Reminders</p>
+                <p className="text-xs text-muted-foreground">Get reminded about tasks each morning</p>
               </div>
             </div>
-            <Switch data-testid="switch-notifications" />
+            <Switch 
+              checked={notificationPrefs?.notificationsEnabled || false}
+              onCheckedChange={onNotificationToggle}
+              disabled={!pushSupported || isLoadingNotificationPrefs}
+              data-testid="switch-notifications" 
+            />
           </div>
+          
+          {notificationPrefs?.notificationsEnabled && (
+            <>
+              <Separator />
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Reminder Time</p>
+                    <p className="text-xs text-muted-foreground">When to receive daily reminders</p>
+                  </div>
+                </div>
+                <Select
+                  value={notificationPrefs?.notificationTime || "07:00"}
+                  onValueChange={onNotificationTimeChange}
+                  disabled={isLoadingNotificationPrefs}
+                >
+                  <SelectTrigger className="w-28" data-testid="select-notification-time">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {NOTIFICATION_TIMES.map((time) => (
+                      <SelectItem key={time.value} value={time.value}>
+                        {time.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <Separator />
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Globe className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Timezone</p>
+                    <p className="text-xs text-muted-foreground">Your local timezone for notifications</p>
+                  </div>
+                </div>
+                <Select
+                  value={notificationPrefs?.timezone || "UTC"}
+                  onValueChange={onTimezoneChange}
+                  disabled={isLoadingNotificationPrefs}
+                >
+                  <SelectTrigger className="w-44" data-testid="select-timezone">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COMMON_TIMEZONES.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>
+                        {tz.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
           
           <Separator />
           
