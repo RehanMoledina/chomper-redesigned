@@ -165,3 +165,44 @@ Preferred communication style: Simple, everyday language.
 
 ### Theme Management
 - Custom theme provider implementation (no external library) managing light/dark/system modes with localStorage persistence
+
+### Native Mobile App (Capacitor)
+
+**Platform**: Capacitor wraps the web app for native iOS and Android deployment.
+
+**Key Files**:
+- `capacitor.config.ts` - Core Capacitor configuration
+- `android/` - Android project files (generated with `npx cap add android`)
+- `ios/` - iOS project files (generated with `npx cap add ios`)
+
+**Push Notifications Architecture**:
+The app uses a dual-channel push strategy:
+- **Web Push (VAPID)**: For browser/PWA users via `web-push` library
+- **Native Push (FCM/APNs)**: For native mobile apps via `@capacitor/push-notifications`
+
+**Database Tables for Push**:
+- `pushSubscriptions` - Web Push subscriptions with VAPID endpoints
+- `deviceTokens` - Native FCM/APNs tokens for iOS and Android
+
+**Notification Scheduler**:
+- Cron job runs every minute checking for exact HH:MM match
+- Timezone-aware delivery at user's configured time (default 7:00 AM)
+- Motivational messages based on outstanding task count
+
+**Building Native Apps**:
+```bash
+# Build web assets first
+npm run build
+
+# Sync to native projects
+npx cap sync
+
+# Open native IDEs
+npx cap open android  # Opens Android Studio
+npx cap open ios      # Opens Xcode
+```
+
+**Required Setup for Production Push**:
+1. **Android**: Configure Firebase project, add `google-services.json`
+2. **iOS**: Configure Apple Push Notification service (APNs) in Developer Portal
+3. **Server**: Set `FIREBASE_SERVICE_ACCOUNT` environment variable for FCM
