@@ -1,8 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertTaskSchema, updateTaskSchema, updateMonsterStatsSchema } from "@shared/schema";
+import { insertTaskSchema, updateTaskSchema, updateMonsterStatsSchema, updateNotificationPrefsSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./auth";
+import { z } from "zod";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -151,6 +152,102 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error checking achievements:", error);
       res.status(500).json({ error: "Failed to check achievements" });
+    }
+  });
+
+  // Push notification routes
+  const pushSubscriptionSchema = z.object({
+    endpoint: z.string().url(),
+    keys: z.object({
+      p256dh: z.string(),
+      auth: z.string(),
+    }),
+  });
+
+  app.post("/api/push/subscribe", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const parsed = pushSubscriptionSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid subscription data", details: parsed.error.issues });
+      }
+
+      const subscription = await storage.savePushSubscription(userId, {
+        endpoint: parsed.data.endpoint,
+        p256dh: parsed.data.keys.p256dh,
+        auth: parsed.data.keys.auth,
+      });
+      
+      res.status(201).json({ message: "Subscription saved", id: subscription.id });
+    } catch (error) {
+      console.error("Error saving push subscription:", error);
+      res.status(500).json({ error: "Failed to save subscription" });
+    }
+  });
+
+  app.delete("/api/push/subscribe", isAuthenticated, async (req: any, res) => {
+    try {
+      const { endpoint } = req.body;
+      if (!endpoint) {
+        return res.status(400).json({ error: "Endpoint is required" });
+      }
+
+      await storage.deletePushSubscription(endpoint);
+      res.json({ message: "Subscription removed" });
+    } catch (error) {
+      console.error("Error removing push subscription:", error);
+      res.status(500).json({ error: "Failed to remove subscription" });
+    }
+  });
+
+  app.get("/api/push/vapid-public-key", (req, res) => {
+    const publicKey = process.env.VAPID_PUBLIC_KEY;
+    if (!publicKey) {
+      return res.status(500).json({ error: "VAPID public key not configured" });
+    }
+    res.json({ publicKey });
+  });
+
+  // Notification preferences routes
+  app.get("/api/notifications/preferences", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json({
+        notificationsEnabled: user.notificationsEnabled,
+        notificationTime: user.notificationTime,
+        timezone: user.timezone,
+      });
+    } catch (error) {
+      console.error("Error fetching notification preferences:", error);
+      res.status(500).json({ error: "Failed to fetch preferences" });
+    }
+  });
+
+  app.patch("/api/notifications/preferences", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const parsed = updateNotificationPrefsSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid preferences data", details: parsed.error.issues });
+      }
+
+      const user = await storage.updateNotificationPrefs(userId, parsed.data);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      res.json({
+        notificationsEnabled: user.notificationsEnabled,
+        notificationTime: user.notificationTime,
+        timezone: user.timezone,
+      });
+    } catch (error) {
+      console.error("Error updating notification preferences:", error);
+      res.status(500).json({ error: "Failed to update preferences" });
     }
   });
 

@@ -20,6 +20,10 @@ localPort = 33271
 externalPort = 3001
 
 [[ports]]
+localPort = 34193
+externalPort = 3003
+
+[[ports]]
 localPort = 34535
 externalPort = 3002
 
@@ -57,3 +61,10 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_database:1.0.0", "javascript_log_in_with_replit:1.0.0", "resend:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+VAPID_PUBLIC_KEY = "BMFoIrJysQgEwaAO9Dn3frC8HsNki16jlk61DP-bnV7Bv_Xoz-Ya_L9hXkDLfmHdVMwSbp8qxOQvpoBQKRXti2c"
+VAPID_PRIVATE_KEY = "Ub5s67NFDkoJIY2Mh-U3xIU1qx1YAvtZJqgZ76CF_k8"
+VAPID_EMAIL = "mailto:chomper@example.com"
