@@ -24,11 +24,5 @@
       "src": "/(.*)",
       "dest": "/api/index.ts"
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron/send-notifications",
-      "schedule": "* * * * *"
-    }
   ]
 }
