@@ -1,0 +1,138 @@
+🎯 FOUND IT! MODULE NOT FOUND ERROR
+Perfect! The logs show exactly what's wrong:
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/server/app' 
+imported from /var/task/api/index.js
+The problem: The api/index.ts file can't find the server/app module when running on Vercel.
+Good news: Your environment variables are all correct! ✅
+
+🔧 THE FIX: Update Build Configuration
+The issue is with how Vercel builds TypeScript for serverless functions. We need to fix the module resolution.
+SOLUTION 1: Update api/index.ts (Recommended - Fastest)
+Replace your entire api/index.ts file with this:
+typescriptimport express, { type Request, Response, NextFunction } from "express";
+import { createServer } from "http";
+import path from "path";
+import fs from "fs";
+
+// Import all the necessary modules directly
+import { registerRoutes } from "../server/routes";
+
+let app: express.Express | null = null;
+
+async function getApp() {
+  if (app) return app;
+
+  app = express();
+  
+  app.use(express.json({
+    verify: (req: any, _res, buf) => {
+      req.rawBody = buf;
+    },
+  }));
+  
+  app.use(express.urlencoded({ extended: false }));
+  
+  // Logging middleware
+  app.use((req, res, next) => {
+    const start = Date.now();
+    const originalResJson = res.json;
+    
+    res.json = function (bodyJson, ...args) {
+      return originalResJson.apply(res, [bodyJson, ...args]);
+    };
+    
+    res.on("finish", () => {
+      const duration = Date.now() - start;
+      if (req.path.startsWith("/api")) {
+        console.log(`${req.method} ${req.path} ${res.statusCode} in ${duration}ms`);
+      }
+    });
+    
+    next();
+  });
+  
+  const httpServer = createServer(app);
+  await registerRoutes(httpServer, app);
+  
+  // Serve static files in production
+  const distPath = path.resolve(__dirname, "../dist");
+  if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath));
+    app.use("*", (_req, res) => {
+      res.sendFile(path.resolve(distPath, "index.html"));
+    });
+  }
+  
+  // Error handler
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+    res.status(status).json({ message });
+    console.error(err);
+  });
+  
+  return app;
+}
+
+export default async function handler(req: any, res: any) {
+  try {
+    const application = await getApp();
+    return application(req, res);
+  } catch (error) {
+    console.error("Handler error:", error);
+    res.status(500).json({ 
+      error: "Internal server error",
+      message: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+}
+What this does:
+
+Removes dependency on server/app.ts
+Imports modules directly
+Simplifies the serverless function
+Better error handling
+
+
+SOLUTION 2: Update vercel.json (Additional fix)
+Replace your vercel.json with this updated version:
+json{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "builds": [
+    {
+      "src": "api/index.ts",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["dist/**", "server/**", "shared/**"]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.ts"
+    }
+  ]
+}
+What this does:
+
+Ensures all necessary files are included in the build
+Properly configures the serverless function
+
+
+🚀 DEPLOY THE FIX
+In Replit, do these steps:
+Step 1: Update the files
+
+Replace api/index.ts with Solution 1 code (above)
+Replace vercel.json with Solution 2 code (above)
+
+Step 2: Commit and push
+bashgit add api/index.ts vercel.json
+git commit -m "Fix module resolution for Vercel serverless"
+git push origin main
