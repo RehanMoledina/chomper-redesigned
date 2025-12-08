@@ -4,14 +4,40 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { SettingsView } from "@/components/settings-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import type { Task } from "@shared/schema";
 
 export default function Settings() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
 
   const { data: tasks = [], isLoading } = useQuery<Task[]>({
     queryKey: ["/api/tasks"],
+  });
+
+  const resendVerificationMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/auth/resend-verification");
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to send verification email");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Verification Email Sent",
+        description: "Please check your inbox and click the verification link.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const logoutMutation = useMutation({
@@ -87,7 +113,11 @@ export default function Settings() {
         <SettingsView
           onClearCompleted={() => clearCompletedMutation.mutate()}
           onLogout={() => logoutMutation.mutate()}
+          onResendVerification={() => resendVerificationMutation.mutate()}
           completedCount={completedCount}
+          userEmail={user?.email}
+          emailVerified={(user as any)?.emailVerified}
+          isResendingVerification={resendVerificationMutation.isPending}
         />
       </div>
     </div>

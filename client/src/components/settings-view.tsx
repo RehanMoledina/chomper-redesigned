@@ -1,4 +1,4 @@
-import { Moon, Sun, Monitor, Bell, Volume2, Trash2, Info, LogOut } from "lucide-react";
+import { Moon, Sun, Monitor, Bell, Volume2, Trash2, Info, LogOut, Mail, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -8,10 +8,22 @@ import { useTheme } from "@/components/theme-provider";
 interface SettingsViewProps {
   onClearCompleted?: () => void;
   onLogout?: () => void;
+  onResendVerification?: () => void;
   completedCount?: number;
+  userEmail?: string;
+  emailVerified?: boolean;
+  isResendingVerification?: boolean;
 }
 
-export function SettingsView({ onClearCompleted, onLogout, completedCount = 0 }: SettingsViewProps) {
+export function SettingsView({ 
+  onClearCompleted, 
+  onLogout, 
+  onResendVerification,
+  completedCount = 0,
+  userEmail,
+  emailVerified = false,
+  isResendingVerification = false,
+}: SettingsViewProps) {
   const { theme, setTheme } = useTheme();
 
   const themeOptions = [
@@ -138,7 +150,55 @@ export function SettingsView({ onClearCompleted, onLogout, completedCount = 0 }:
         <CardHeader className="pb-3">
           <CardTitle className="text-lg font-semibold">Account</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {userEmail && (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Email</p>
+                    <p className="text-xs text-muted-foreground">{userEmail}</p>
+                  </div>
+                </div>
+                {emailVerified ? (
+                  <div className="flex items-center gap-1 text-primary">
+                    <CheckCircle className="h-4 w-4" />
+                    <span className="text-xs font-medium">Verified</span>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onResendVerification}
+                    disabled={isResendingVerification}
+                    data-testid="button-resend-verification"
+                  >
+                    {isResendingVerification ? (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      "Verify"
+                    )}
+                  </Button>
+                )}
+              </div>
+
+              {!emailVerified && (
+                <div className="flex items-start gap-2 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-md">
+                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    Please verify your email to secure your account and enable password recovery.
+                  </p>
+                </div>
+              )}
+
+              <Separator />
+            </>
+          )}
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <LogOut className="h-4 w-4 text-muted-foreground" />
