@@ -1,0 +1,118 @@
+STEP-BY-STEP: FIXING CRON FOR VERCEL
+What We're Changing:
+Before (Replit): Background process runs every minute ❌
+After (Vercel): Vercel calls API endpoint every minute ✅
+
+STEP 1: Create Cron Endpoint (5 minutes)
+We need to add a new API route that Vercel Cron will call.
+Open server/routes.ts and add this endpoint:2 stepsSearched project for “server/routes.ts registerRoutes return httpServer export”4 resultsserver/index.tstextserver/routes.ts5 relevant sectionstextserver/static.tstexttsconfig.jsontextIdentified route structure and prepared cron endpoint implementation.Good! I can see the routes.ts file structure. Now I need to provide the user with the exact code to add the cron endpoint. I'll add it just before the return httpServer; line at the end of the registerRoutes function.
+Let me create the complete set of changes they need to make.Now I'll give you the exact code changes:
+
+🔧 CODE CHANGES NEEDED
+CHANGE 1: Add Cron Endpoint to server/routes.ts
+Location: Add this code just before return httpServer; at the end of the registerRoutes function.
+Code to add:
+typescript  // ============================================
+  // VERCEL CRON ENDPOINT - For scheduled notifications
+  // ============================================
+  app.get("/api/cron/send-notifications", async (req, res) => {
+    try {
+      // Security: Verify request is from Vercel Cron
+      const authHeader = req.headers.authorization;
+      const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
+      
+      if (authHeader !== expectedAuth) {
+        console.error("Unauthorized cron attempt");
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      // Import the notification function
+      const { sendDailyNotificationsForTimezone } = await import("./push-notifications");
+      
+      // Send notifications
+      await sendDailyNotificationsForTimezone();
+      
+      res.json({ success: true, timestamp: new Date().toISOString() });
+    } catch (error) {
+      console.error("Error in cron job:", error);
+      res.status(500).json({ error: "Cron job failed" });
+    }
+  });
+
+  return httpServer;
+}
+Where exactly to add it:
+Look for the last route in your server/routes.ts file (the device token delete route), and add this code right after it, just before the return httpServer; line.
+
+CHANGE 2: Update server/index.ts
+Remove the cron startup call since Vercel will handle it.
+Find this line:
+typescriptstartNotificationCron();
+Replace with:
+typescript// Cron job is handled by Vercel Cron in production
+// See /api/cron/send-notifications endpoint and vercel.json
+if (process.env.NODE_ENV !== "production") {
+  console.log("Development mode: cron notifications disabled");
+  console.log("In production, Vercel Cron handles notifications");
+}
+
+CHANGE 3: Create vercel.json file
+Create a NEW file in your project root (same level as package.json)
+Filename: vercel.json
+Complete contents:
+json{
+  "crons": [{
+    "path": "/api/cron/send-notifications",
+    "schedule": "* * * * *"
+  }],
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install"
+}
+What this does:
+
+"schedule": "* * * * *" = Every minute
+"path" = The endpoint Vercel will call
+Other settings tell Vercel how to build your app
+
+
+CHANGE 4: Generate CRON_SECRET
+Open your terminal and run ONE of these commands:
+Option A - Node.js:
+bashnode -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+**Option B - Online:**
+Go to https://www.uuidgenerator.net/ and click "Generate"
+
+**Copy the result** - you'll need it for Vercel environment variables.
+
+**Example output:**
+```
+a7f3d2e8b4c1f6a9d3e7b2c5f8a1d4e6b9c2f5a8d1e4b7c0f3a6d9e2b5c8f1a4
+
+SUMMARY OF CHANGES:
+FileActionTimeserver/routes.tsAdd cron endpoint5 minserver/index.tsRemove cron startup2 minvercel.jsonCreate new file3 minGenerate secretRun command1 min
+
+✅ MAKE THESE CHANGES NOW
+Please do these steps in order:
+
+Edit server/routes.ts - Add the cron endpoint code
+Edit server/index.ts - Remove/update the cron startup
+Create vercel.json - New file in project root
+Generate CRON_SECRET - Run the command, save the output
+
+After making these changes:
+
+Test locally (optional but recommended):
+
+bashnpm run dev
+Then visit: http://localhost:5000/api/cron/send-notifications
+(You'll get 401 Unauthorized, which is correct!)
+
+Commit to GitHub:
+
+bashgit add .
+git commit -m "Configure app for Vercel deployment with Vercel Cron"
+git push

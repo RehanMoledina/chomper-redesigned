@@ -94,7 +94,12 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
-      startNotificationCron();
+      // Only run local cron in development - Vercel Cron handles production
+      if (process.env.NODE_ENV !== "production") {
+        startNotificationCron();
+      } else {
+        log("Production mode: Vercel Cron handles scheduled notifications");
+      }
     },
   );
 })();
