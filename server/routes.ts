@@ -288,26 +288,5 @@ export async function registerRoutes(
     }
   });
 
-  // Vercel Cron endpoint for scheduled notifications
-  app.get("/api/cron/send-notifications", async (req, res) => {
-    try {
-      const authHeader = req.headers.authorization;
-      const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
-      
-      if (authHeader !== expectedAuth) {
-        console.error("Unauthorized cron attempt");
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-
-      const { sendDailyNotificationsForTimezone } = await import("./push-notifications");
-      await sendDailyNotificationsForTimezone();
-      
-      res.json({ success: true, timestamp: new Date().toISOString() });
-    } catch (error) {
-      console.error("Error in cron job:", error);
-      res.status(500).json({ error: "Cron job failed" });
-    }
-  });
-
   return httpServer;
 }
