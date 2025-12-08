@@ -3,8 +3,8 @@ import {
   type Task, type InsertTask, type UpdateTask,
   type MonsterStats, type InsertMonsterStats,
   type Achievement, type InsertAchievement,
-  type PasswordResetToken,
-  users, tasks, monsterStats, achievements, passwordResetTokens 
+  type PasswordResetToken, type EmailVerificationToken,
+  users, tasks, monsterStats, achievements, passwordResetTokens, emailVerificationTokens 
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, lt } from "drizzle-orm";
@@ -15,11 +15,16 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: { email: string; password: string; firstName: string | null; lastName: string | null }): Promise<User>;
   updateUserPassword(userId: string, hashedPassword: string): Promise<boolean>;
+  verifyUserEmail(userId: string): Promise<boolean>;
   
   createPasswordResetToken(userId: string): Promise<string>;
   getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
   markTokenAsUsed(tokenId: string): Promise<void>;
   cleanupExpiredTokens(): Promise<void>;
+  
+  createEmailVerificationToken(userId: string): Promise<string>;
+  getEmailVerificationToken(token: string): Promise<EmailVerificationToken | undefined>;
+  markVerificationTokenAsUsed(tokenId: string): Promise<void>;
   
   getTasks(userId: string): Promise<Task[]>;
   getTask(id: string, userId: string): Promise<Task | undefined>;
@@ -100,6 +105,48 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(passwordResetTokens)
       .where(lt(passwordResetTokens.expiresAt, new Date()));
+    await db
+      .delete(emailVerificationTokens)
+      .where(lt(emailVerificationTokens.expiresAt, new Date()));
+  }
+
+  async verifyUserEmail(userId: string): Promise<boolean> {
+    const result = await db
+      .update(users)
+      .set({ emailVerified: true, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return result.length > 0;
+  }
+
+  async createEmailVerificationToken(userId: string): Promise<string> {
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+    
+    await db.insert(emailVerificationTokens).values({
+      userId,
+      token: tokenHash,
+      expiresAt,
+    });
+    
+    return token;
+  }
+
+  async getEmailVerificationToken(token: string): Promise<EmailVerificationToken | undefined> {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const [verificationToken] = await db
+      .select()
+      .from(emailVerificationTokens)
+      .where(eq(emailVerificationTokens.token, tokenHash));
+    return verificationToken || undefined;
+  }
+
+  async markVerificationTokenAsUsed(tokenId: string): Promise<void> {
+    await db
+      .update(emailVerificationTokens)
+      .set({ usedAt: new Date() })
+      .where(eq(emailVerificationTokens.id, tokenId));
   }
 
   async getTasks(userId: string): Promise<Task[]> {
