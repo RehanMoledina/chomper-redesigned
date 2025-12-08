@@ -23,8 +23,21 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   emailVerified: boolean("email_verified").notNull().default(false),
+  notificationsEnabled: boolean("notifications_enabled").notNull().default(false),
+  notificationTime: varchar("notification_time").default("07:00"),
+  timezone: varchar("timezone").default("UTC"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Push subscriptions table for web push notifications
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Auth schemas
@@ -34,8 +47,24 @@ export const registerSchema = createInsertSchema(users, {
 }).omit({
   id: true,
   profileImageUrl: true,
+  emailVerified: true,
+  notificationsEnabled: true,
+  notificationTime: true,
+  timezone: true,
   createdAt: true,
   updatedAt: true,
+});
+
+// Push subscription schemas
+export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const updateNotificationPrefsSchema = z.object({
+  notificationsEnabled: z.boolean().optional(),
+  notificationTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:MM)").optional(),
+  timezone: z.string().optional(),
 });
 
 export const loginSchema = z.object({
@@ -166,3 +195,6 @@ export type InsertMonsterStats = z.infer<typeof insertMonsterStatsSchema>;
 export type UpdateMonsterStats = z.infer<typeof updateMonsterStatsSchema>;
 export type Achievement = typeof achievements.$inferSelect;
 export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
+export type UpdateNotificationPrefs = z.infer<typeof updateNotificationPrefsSchema>;

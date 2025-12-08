@@ -4,10 +4,11 @@ import {
   type MonsterStats, type InsertMonsterStats,
   type Achievement, type InsertAchievement,
   type PasswordResetToken, type EmailVerificationToken,
-  users, tasks, monsterStats, achievements, passwordResetTokens, emailVerificationTokens 
+  type PushSubscription, type InsertPushSubscription, type UpdateNotificationPrefs,
+  users, tasks, monsterStats, achievements, passwordResetTokens, emailVerificationTokens, pushSubscriptions 
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, lt } from "drizzle-orm";
+import { eq, desc, and, lt, isNotNull } from "drizzle-orm";
 import crypto from "crypto";
 
 export interface IStorage {
@@ -40,6 +41,14 @@ export interface IStorage {
   initializeAchievements(userId: string): Promise<void>;
   unlockAchievement(id: string, oderId: string): Promise<Achievement | undefined>;
   checkAndUnlockAchievements(userId: string, stats: MonsterStats): Promise<Achievement[]>;
+  
+  // Push notifications
+  savePushSubscription(userId: string, subscription: { endpoint: string; p256dh: string; auth: string }): Promise<PushSubscription>;
+  getPushSubscriptions(userId: string): Promise<PushSubscription[]>;
+  deletePushSubscription(endpoint: string): Promise<boolean>;
+  updateNotificationPrefs(userId: string, prefs: UpdateNotificationPrefs): Promise<User | undefined>;
+  getUsersWithNotificationsEnabled(): Promise<User[]>;
+  getTasksDueTodayForUser(userId: string, timezone: string): Promise<Task[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -430,6 +439,75 @@ export class DatabaseStorage implements IStorage {
     }
 
     return newlyUnlocked;
+  }
+
+  async savePushSubscription(userId: string, subscription: { endpoint: string; p256dh: string; auth: string }): Promise<PushSubscription> {
+    // Delete any existing subscription with this endpoint first
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, subscription.endpoint));
+    
+    const [sub] = await db
+      .insert(pushSubscriptions)
+      .values({
+        userId,
+        endpoint: subscription.endpoint,
+        p256dh: subscription.p256dh,
+        auth: subscription.auth,
+      })
+      .returning();
+    return sub;
+  }
+
+  async getPushSubscriptions(userId: string): Promise<PushSubscription[]> {
+    return await db
+      .select()
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.userId, userId));
+  }
+
+  async deletePushSubscription(endpoint: string): Promise<boolean> {
+    const result = await db
+      .delete(pushSubscriptions)
+      .where(eq(pushSubscriptions.endpoint, endpoint))
+      .returning();
+    return result.length > 0;
+  }
+
+  async updateNotificationPrefs(userId: string, prefs: UpdateNotificationPrefs): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ ...prefs, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user || undefined;
+  }
+
+  async getUsersWithNotificationsEnabled(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(eq(users.notificationsEnabled, true));
+  }
+
+  async getTasksDueTodayForUser(userId: string, timezone: string): Promise<Task[]> {
+    // Get all incomplete tasks for user
+    const allTasks = await db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.userId, userId), eq(tasks.completed, false)));
+    
+    // Filter to tasks due today in user's timezone
+    const now = new Date();
+    const userNow = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
+    const todayStart = new Date(userNow);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(userNow);
+    todayEnd.setHours(23, 59, 59, 999);
+    
+    return allTasks.filter(task => {
+      if (!task.dueDate) return true; // Tasks without due date are always relevant
+      const taskDue = new Date(task.dueDate);
+      return taskDue >= todayStart && taskDue <= todayEnd;
+    });
   }
 }
 
