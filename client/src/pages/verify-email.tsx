@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MonsterCompanion } from "@/components/monster-companion";
@@ -34,6 +35,7 @@ export default function VerifyEmail() {
     onSuccess: () => {
       setSuccess(true);
       setError(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
     },
     onError: (err: Error) => {
       setError(err.message);
