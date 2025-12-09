@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build:frontend",
+  "buildCommand": "npx tsx script/build-frontend.ts",
   "outputDirectory": "dist/public",
   "framework": "vite",
   "rewrites": [

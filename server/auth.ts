@@ -144,7 +144,13 @@ export async function setupAuth(app: Express) {
       if (err) {
         return res.status(500).json({ message: "Logout failed" });
       }
-      res.clearCookie("connect.sid");
+      const isProduction = process.env.NODE_ENV === 'production';
+      const isCrossDomain = !!process.env.FRONTEND_URL;
+      res.clearCookie("connect.sid", {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isCrossDomain ? 'none' : 'lax',
+      });
       res.json({ message: "Logged out successfully" });
     });
   });

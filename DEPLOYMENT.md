@@ -90,7 +90,9 @@ Add these in Vercel's "Environment Variables" section:
 |----------|-------------|---------|
 | `VITE_API_URL` | Your Railway backend URL | `https://chomper-api.up.railway.app` |
 
-**Important**: Variables prefixed with `VITE_` are exposed to the browser.
+**Important Notes**:
+- Variables prefixed with `VITE_` are exposed to the browser
+- `VITE_API_URL` must NOT have a trailing slash (use `https://api.example.com` not `https://api.example.com/`)
 
 ### 2.5 Deploy
 Click "Deploy" and Vercel will build and deploy your frontend.
