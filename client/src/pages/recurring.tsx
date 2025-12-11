@@ -360,6 +360,7 @@ export default function Recurring() {
 
   // Group recurring tasks by title + pattern to show each only once
   // For each group, show the active (non-completed) one, or the most recent completed one
+  // Then sort by due date ascending (earliest first)
   const recurringTasks = (() => {
     const allRecurring = tasks.filter(t => t.isRecurring);
     const grouped = new Map<string, Task[]>();
@@ -390,7 +391,13 @@ export default function Recurring() {
       }
     });
     
-    return uniqueTasks;
+    // Sort by due date ascending (earliest first)
+    // Tasks without due dates go to the end
+    return uniqueTasks.sort((a, b) => {
+      const aDate = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+      const bDate = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+      return aDate - bDate;
+    });
   })();
 
   const stopRecurringMutation = useMutation({
