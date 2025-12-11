@@ -221,10 +221,10 @@ export default function Progress() {
           <Card className="border-card-border">
             <CardContent className="pt-4">
               <div className="flex items-center gap-2 mb-2">
-                <Heart className="h-4 w-4 text-pink-500" />
-                <span className="text-sm font-medium text-muted-foreground">Happiness</span>
+                <Star className="h-4 w-4 text-amber-500" />
+                <span className="text-sm font-medium text-muted-foreground">Total Completed</span>
               </div>
-              <p className="text-2xl font-bold" data-testid="text-happiness-level">{happinessLevel}%</p>
+              <p className="text-2xl font-bold" data-testid="text-total-completed">{tasksChomped}</p>
             </CardContent>
           </Card>
         </div>
