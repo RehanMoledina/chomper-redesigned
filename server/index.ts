@@ -8,8 +8,12 @@ const app = express();
 const httpServer = createServer(app);
 
 // CORS configuration for split frontend/backend deployment
+const frontendUrls = process.env.FRONTEND_URL 
+  ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+  : [];
+
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
+  ...frontendUrls,
   'http://localhost:5173',
   'http://localhost:3000',
 ].filter(Boolean) as string[];
