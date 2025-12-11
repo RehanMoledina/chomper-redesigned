@@ -95,6 +95,11 @@ export default function Progress() {
   const completedWeeklyTasks = weeklyRecurringTasks.filter(t => t.completed).length;
   const totalWeeklyTasks = weeklyRecurringTasks.length;
 
+  // Monthly recurring tasks stats
+  const monthlyRecurringTasks = tasks.filter(t => t.isRecurring && t.recurringPattern === "monthly");
+  const completedMonthlyTasks = monthlyRecurringTasks.filter(t => t.completed).length;
+  const totalMonthlyTasks = monthlyRecurringTasks.length;
+
   const getMonsterState = () => {
     if (happinessLevel >= 80) return "celebrating";
     if (happinessLevel >= 50) return "happy";
@@ -205,9 +210,11 @@ export default function Progress() {
             <CardContent className="pt-4">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle2 className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium text-muted-foreground">Total Chomped</span>
+                <span className="text-sm font-medium text-muted-foreground">Monthly Tasks</span>
               </div>
-              <p className="text-2xl font-bold text-primary" data-testid="text-total-chomped">{tasksChomped}</p>
+              <p className="text-2xl font-bold" data-testid="text-monthly-tasks">
+                {completedMonthlyTasks}<span className="text-muted-foreground text-xl">/{totalMonthlyTasks}</span>
+              </p>
             </CardContent>
           </Card>
 
