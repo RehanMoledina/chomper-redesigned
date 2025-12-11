@@ -385,7 +385,6 @@ export class DatabaseStorage implements IStorage {
 
     const defaultAchievements: InsertAchievement[] = [
       // Task completion achievements
-      { id: `${userId}_first_chomp`, userId, name: "First Bite", description: "Complete your first task", icon: "cookie", requirement: 1, type: "tasks_chomped" },
       { id: `${userId}_chomp_10`, userId, name: "Getting Hungry", description: "Complete 10 tasks", icon: "utensils", requirement: 10, type: "tasks_chomped" },
       { id: `${userId}_chomp_25`, userId, name: "Appetite Growing", description: "Complete 25 tasks", icon: "chef-hat", requirement: 25, type: "tasks_chomped" },
       { id: `${userId}_chomp_50`, userId, name: "Hungry Monster", description: "Complete 50 tasks", icon: "drumstick", requirement: 50, type: "tasks_chomped" },
