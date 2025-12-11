@@ -102,7 +102,7 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
                   data-testid="button-due-date"
                 >
                   <Calendar className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{dueDate ? format(dueDate, "MMM d") : "Due"}</span>
+                  <span className="truncate">{dueDate ? format(dueDate, "MMM d") : "Due Date"}</span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -121,7 +121,7 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger className="h-7 w-auto min-w-0 gap-1 px-2 text-xs" data-testid="select-category">
                 <Tag className="h-3 w-3 shrink-0" />
-                <SelectValue />
+                <span>Category</span>
               </SelectTrigger>
               <SelectContent>
                 {categories.map((cat) => (
@@ -138,7 +138,7 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
             <Select value={repeatPattern} onValueChange={setRepeatPattern}>
               <SelectTrigger className="h-7 w-auto min-w-0 gap-1 px-2 text-xs" data-testid="select-repeat">
                 <Repeat className="h-3 w-3 shrink-0" />
-                <SelectValue />
+                <span>Repeat</span>
               </SelectTrigger>
               <SelectContent>
                 {repeatPatterns.map((pattern) => (
@@ -158,7 +158,7 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
               data-testid="button-toggle-notes"
             >
               <FileText className="h-3 w-3 shrink-0" />
-              <span>Notes</span>
+              <span>Task Notes</span>
             </Button>
 
             {(dueDate || repeatPattern !== "none" || notes) && (
