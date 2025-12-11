@@ -4,9 +4,9 @@ import { Card } from "@/components/ui/card";
 import { MonsterCompanion, monsterInfo } from "@/components/monster-companion";
 import { useMonster } from "@/hooks/use-monster";
 
-type MonsterType = "chomper" | "blaze" | "sparkle" | "royal" | "cosmic";
+type MonsterType = "chomper" | "blaze" | "sparkle" | "royal" | "cosmic" | "ember" | "titan" | "legend" | "nova";
 
-const allMonsters: MonsterType[] = ["chomper", "blaze", "sparkle", "royal", "cosmic"];
+const allMonsters: MonsterType[] = ["chomper", "blaze", "sparkle", "cosmic", "nova", "ember", "royal", "titan", "legend"];
 
 export function MonsterSelector() {
   const { selectedMonster, setSelectedMonster, unlockedMonsters, isLoading } = useMonster();
@@ -16,7 +16,7 @@ export function MonsterSelector() {
       <div className="space-y-3">
         <h3 className="text-lg font-semibold text-foreground">Your Monsters</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {[1, 2, 3, 4, 5].map((i) => (
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
             <Card key={i} className="p-4 h-32 animate-pulse bg-muted" />
           ))}
         </div>

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, createContext, useContext } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Achievement, MonsterStats } from "@shared/schema";
 
-type MonsterType = "chomper" | "blaze" | "sparkle" | "royal" | "cosmic";
+type MonsterType = "chomper" | "blaze" | "sparkle" | "royal" | "cosmic" | "ember" | "titan" | "legend" | "nova";
 
 interface MonsterContextType {
   selectedMonster: MonsterType;
@@ -40,19 +40,22 @@ export function MonsterProvider({ children }: { children: React.ReactNode }) {
     const unlocked: MonsterType[] = ["chomper"];
     
     if (achievements.length > 0) {
-      // Achievement IDs are stored as `${userId}_achievement_name`
-      // Check if the achievement is unlocked by looking for the suffix
-      const hasTask10 = achievements.find(a => a.id.endsWith("_chomp_10") && a.unlockedAt);
-      if (hasTask10) unlocked.push("blaze");
+      // Check monster unlock achievements by looking for the suffix
+      const monsterUnlocks: { suffix: string; monster: MonsterType }[] = [
+        { suffix: "_monster_blaze", monster: "blaze" },
+        { suffix: "_monster_sparkle", monster: "sparkle" },
+        { suffix: "_monster_cosmic", monster: "cosmic" },
+        { suffix: "_monster_nova", monster: "nova" },
+        { suffix: "_monster_ember", monster: "ember" },
+        { suffix: "_monster_royal", monster: "royal" },
+        { suffix: "_monster_titan", monster: "titan" },
+        { suffix: "_monster_legend", monster: "legend" },
+      ];
       
-      const hasHappiness75 = achievements.find(a => a.id.endsWith("_happiness_75") && a.unlockedAt);
-      if (hasHappiness75) unlocked.push("sparkle");
-      
-      const hasStreak7 = achievements.find(a => a.id.endsWith("_streak_7") && a.unlockedAt);
-      if (hasStreak7) unlocked.push("royal");
-      
-      const hasTask50 = achievements.find(a => a.id.endsWith("_chomp_50") && a.unlockedAt);
-      if (hasTask50) unlocked.push("cosmic");
+      for (const { suffix, monster } of monsterUnlocks) {
+        const achievement = achievements.find(a => a.id.endsWith(suffix) && a.unlockedAt);
+        if (achievement) unlocked.push(monster);
+      }
     }
     
     return unlocked;
