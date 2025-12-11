@@ -117,10 +117,16 @@ export default function Progress() {
   // Calculate next monster unlock progress
   const getNextMonsterProgress = () => {
     const monsters = [
+      // Task-based monsters
       { name: "Blaze", type: "tasks", value: 10 },
       { name: "Sparkle", type: "tasks", value: 25 },
       { name: "Cosmic", type: "tasks", value: 50 },
+      { name: "Nova", type: "tasks", value: 100 },
+      // Streak-based monsters
+      { name: "Ember", type: "streak", value: 3 },
       { name: "Royal", type: "streak", value: 7 },
+      { name: "Titan", type: "streak", value: 14 },
+      { name: "Legend", type: "streak", value: 30 },
     ];
 
     // Find next task-based monster to unlock

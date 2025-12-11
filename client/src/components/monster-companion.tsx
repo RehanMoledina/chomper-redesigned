@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 type MonsterState = "idle" | "hungry" | "eating" | "happy" | "celebrating";
-type MonsterType = "chomper" | "blaze" | "sparkle" | "royal" | "cosmic";
+type MonsterType = "chomper" | "blaze" | "sparkle" | "royal" | "cosmic" | "ember" | "titan" | "legend" | "nova";
 
 interface MonsterCompanionProps {
   state?: MonsterState;
@@ -63,14 +63,46 @@ const monsterColors: Record<MonsterType, Record<MonsterState, string>> = {
     happy: "bg-gradient-to-b from-cyan-400 to-blue-600",
     celebrating: "bg-gradient-to-b from-yellow-300 to-cyan-500",
   },
+  ember: {
+    idle: "bg-gradient-to-b from-amber-400 to-orange-500",
+    hungry: "bg-gradient-to-b from-amber-300 to-amber-400",
+    eating: "bg-gradient-to-b from-orange-400 to-amber-500",
+    happy: "bg-gradient-to-b from-amber-400 to-orange-500",
+    celebrating: "bg-gradient-to-b from-yellow-300 to-amber-400",
+  },
+  titan: {
+    idle: "bg-gradient-to-b from-stone-400 to-stone-600",
+    hungry: "bg-gradient-to-b from-stone-300 to-stone-400",
+    eating: "bg-gradient-to-b from-stone-500 to-stone-700",
+    happy: "bg-gradient-to-b from-stone-400 to-stone-600",
+    celebrating: "bg-gradient-to-b from-amber-400 to-stone-500",
+  },
+  legend: {
+    idle: "bg-gradient-to-b from-yellow-400 to-amber-500",
+    hungry: "bg-gradient-to-b from-yellow-300 to-yellow-400",
+    eating: "bg-gradient-to-b from-amber-400 to-yellow-500",
+    happy: "bg-gradient-to-b from-yellow-400 to-amber-500",
+    celebrating: "bg-gradient-to-b from-yellow-200 to-amber-400",
+  },
+  nova: {
+    idle: "bg-gradient-to-b from-rose-400 to-pink-600",
+    hungry: "bg-gradient-to-b from-rose-300 to-rose-400",
+    eating: "bg-gradient-to-b from-pink-400 to-rose-600",
+    happy: "bg-gradient-to-b from-rose-400 to-pink-600",
+    celebrating: "bg-gradient-to-b from-yellow-300 to-rose-400",
+  },
 };
 
 export const monsterInfo: Record<MonsterType, { name: string; description: string; requirement: string; type: string; value: number }> = {
   chomper: { name: "Chomper", description: "The classic green friend", requirement: "Always available", type: "default", value: 0 },
   blaze: { name: "Blaze", description: "A fiery companion", requirement: "Complete 10 tasks", type: "tasks", value: 10 },
   sparkle: { name: "Sparkle", description: "A magical friend", requirement: "Complete 25 tasks", type: "tasks", value: 25 },
-  royal: { name: "Royal", description: "A noble companion", requirement: "Maintain a 7-day streak", type: "streak", value: 7 },
   cosmic: { name: "Cosmic", description: "A stellar friend", requirement: "Complete 50 tasks", type: "tasks", value: 50 },
+  nova: { name: "Nova", description: "An explosive superstar", requirement: "Complete 100 tasks", type: "tasks", value: 100 },
+  ember: { name: "Ember", description: "A warm fire starter", requirement: "Maintain a 3-day streak", type: "streak", value: 3 },
+  royal: { name: "Royal", description: "A noble companion", requirement: "Maintain a 7-day streak", type: "streak", value: 7 },
+  titan: { name: "Titan", description: "A powerful earth guardian", requirement: "Maintain a 14-day streak", type: "streak", value: 14 },
+  legend: { name: "Legend", description: "A legendary golden champion", requirement: "Maintain a 30-day streak", type: "streak", value: 30 },
 };
 
 export function MonsterCompanion({

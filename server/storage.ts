@@ -394,11 +394,16 @@ export class DatabaseStorage implements IStorage {
       { id: `${userId}_streak_7`, userId, name: "Week Warrior", description: "Maintain a 7-day streak", icon: "zap", requirement: 7, type: "streak" },
       { id: `${userId}_streak_14`, userId, name: "Fortnight Fighter", description: "Maintain a 14-day streak", icon: "star", requirement: 14, type: "streak" },
       { id: `${userId}_streak_30`, userId, name: "Monthly Master", description: "Maintain a 30-day streak", icon: "trophy", requirement: 30, type: "streak" },
-      // Monster unlock achievements
+      // Monster unlock achievements - task based
       { id: `${userId}_monster_blaze`, userId, name: "Blaze Unlocked", description: "Unlock Blaze monster", icon: "flame", requirement: 10, type: "monster_unlock" },
       { id: `${userId}_monster_sparkle`, userId, name: "Sparkle Unlocked", description: "Unlock Sparkle monster", icon: "sparkles", requirement: 25, type: "monster_unlock" },
-      { id: `${userId}_monster_royal`, userId, name: "Royal Unlocked", description: "Unlock Royal monster", icon: "crown", requirement: 7, type: "monster_unlock_streak" },
       { id: `${userId}_monster_cosmic`, userId, name: "Cosmic Unlocked", description: "Unlock Cosmic monster", icon: "star", requirement: 50, type: "monster_unlock" },
+      { id: `${userId}_monster_nova`, userId, name: "Nova Unlocked", description: "Unlock Nova monster", icon: "zap", requirement: 100, type: "monster_unlock" },
+      // Monster unlock achievements - streak based
+      { id: `${userId}_monster_ember`, userId, name: "Ember Unlocked", description: "Unlock Ember monster", icon: "flame", requirement: 3, type: "monster_unlock_streak" },
+      { id: `${userId}_monster_royal`, userId, name: "Royal Unlocked", description: "Unlock Royal monster", icon: "crown", requirement: 7, type: "monster_unlock_streak" },
+      { id: `${userId}_monster_titan`, userId, name: "Titan Unlocked", description: "Unlock Titan monster", icon: "trophy", requirement: 14, type: "monster_unlock_streak" },
+      { id: `${userId}_monster_legend`, userId, name: "Legend Unlocked", description: "Unlock Legend monster", icon: "crown", requirement: 30, type: "monster_unlock_streak" },
     ];
 
     await db.insert(achievements).values(defaultAchievements);
