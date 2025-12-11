@@ -88,8 +88,12 @@ export default function Progress() {
   const totalCompleted = tasks.filter(t => t.completed).length;
   const happinessLevel = stats?.happinessLevel ?? 50;
   const currentStreak = stats?.currentStreak ?? 0;
-  const longestStreak = stats?.longestStreak ?? 0;
   const tasksChomped = stats?.tasksChomped ?? totalCompleted;
+
+  // Weekly recurring tasks stats
+  const weeklyRecurringTasks = tasks.filter(t => t.isRecurring && t.recurringPattern === "weekly");
+  const completedWeeklyTasks = weeklyRecurringTasks.filter(t => t.completed).length;
+  const totalWeeklyTasks = weeklyRecurringTasks.length;
 
   const getMonsterState = () => {
     if (happinessLevel >= 80) return "celebrating";
@@ -187,10 +191,10 @@ export default function Progress() {
             <CardContent className="pt-4">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingUp className="h-4 w-4 text-emerald-500" />
-                <span className="text-sm font-medium text-muted-foreground">Best Streak</span>
+                <span className="text-sm font-medium text-muted-foreground">Weekly Tasks</span>
               </div>
-              <p className="text-2xl font-bold" data-testid="text-longest-streak">
-                {longestStreak} <span className="text-sm font-normal text-muted-foreground">days</span>
+              <p className="text-2xl font-bold" data-testid="text-weekly-tasks">
+                {completedWeeklyTasks}<span className="text-muted-foreground text-xl">/{totalWeeklyTasks}</span>
               </p>
             </CardContent>
           </Card>
