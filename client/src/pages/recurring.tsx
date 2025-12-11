@@ -48,6 +48,15 @@ const patternIcons: Record<string, typeof Calendar> = {
   monthly: CalendarClock,
 };
 
+const categoryFilters = [
+  { value: "all", label: "All" },
+  { value: "personal", label: "Personal", color: "bg-blue-500" },
+  { value: "work", label: "Work", color: "bg-purple-500" },
+  { value: "health", label: "Health", color: "bg-emerald-500" },
+  { value: "shopping", label: "Shopping", color: "bg-amber-500" },
+  { value: "other", label: "Other", color: "bg-gray-500" },
+];
+
 function RecurringTaskCard({ task, onEdit, onDelete }: { 
   task: Task; 
   onEdit: (task: Task) => void;
@@ -353,6 +362,7 @@ export default function Recurring() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
   const { data: tasks = [], isLoading } = useQuery<Task[]>({
     queryKey: ["/api/tasks"],
@@ -393,11 +403,17 @@ export default function Recurring() {
     
     // Sort by due date ascending (earliest first)
     // Tasks without due dates go to the end
-    return uniqueTasks.sort((a, b) => {
+    const sorted = uniqueTasks.sort((a, b) => {
       const aDate = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
       const bDate = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
       return aDate - bDate;
     });
+    
+    // Apply category filter
+    if (categoryFilter === "all") {
+      return sorted;
+    }
+    return sorted.filter(t => (t.category || "other") === categoryFilter);
   })();
 
   const stopRecurringMutation = useMutation({
@@ -466,15 +482,37 @@ export default function Recurring() {
           </Button>
         </div>
 
+        <div className="flex flex-wrap gap-2 justify-center">
+          {categoryFilters.map((filter) => (
+            <Button
+              key={filter.value}
+              variant={categoryFilter === filter.value ? "default" : "outline"}
+              size="sm"
+              onClick={() => setCategoryFilter(filter.value)}
+              className="gap-1.5"
+              data-testid={`filter-${filter.value}`}
+            >
+              {filter.color && (
+                <span className={`w-2 h-2 rounded-full ${filter.color}`} />
+              )}
+              {filter.label}
+            </Button>
+          ))}
+        </div>
+
         {recurringTasks.length === 0 ? (
           <Card className="border-card-border">
             <CardContent className="py-12 text-center">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
                 <Repeat className="w-8 h-8 text-muted-foreground" />
               </div>
-              <h3 className="font-medium text-foreground mb-1">No recurring tasks</h3>
+              <h3 className="font-medium text-foreground mb-1">
+                {categoryFilter === "all" ? "No recurring tasks" : `No ${categoryFilter} recurring tasks`}
+              </h3>
               <p className="text-sm text-muted-foreground">
-                Create a recurring task to get started with automatic repeats
+                {categoryFilter === "all" 
+                  ? "Create a recurring task to get started with automatic repeats"
+                  : "Try selecting a different category filter"}
               </p>
             </CardContent>
           </Card>
