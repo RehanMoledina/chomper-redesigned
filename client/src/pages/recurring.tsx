@@ -32,7 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { format } from "date-fns";
+import { format, addDays, addWeeks, addMonths, getDay, nextDay, setDate, isAfter, startOfDay } from "date-fns";
 import { useState } from "react";
 import type { Task } from "@shared/schema";
 
@@ -55,6 +55,61 @@ const categoryFilters = [
   { value: "money", label: "Money", color: "bg-emerald-500" },
   { value: "other", label: "Other", color: "bg-gray-500" },
 ];
+
+const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function getNextDueText(task: Task): string | null {
+  const pattern = task.recurringPattern || "daily";
+  const today = startOfDay(new Date());
+  
+  // If task has a due date, use it as the base for calculating next occurrence
+  const baseDate = task.dueDate ? startOfDay(new Date(task.dueDate)) : today;
+  
+  if (pattern === "daily") {
+    // Next day
+    const nextDate = addDays(today, 1);
+    return `Tomorrow`;
+  }
+  
+  if (pattern === "weekly") {
+    // If there's a due date, use that day of the week
+    const targetDayOfWeek = task.dueDate ? getDay(baseDate) : 1; // Default to Monday (1)
+    const todayDayOfWeek = getDay(today);
+    
+    let nextDate: Date;
+    if (task.completed) {
+      // Task completed, next occurrence is next week's day
+      nextDate = nextDay(today, targetDayOfWeek as 0 | 1 | 2 | 3 | 4 | 5 | 6);
+    } else {
+      // Task not completed
+      if (todayDayOfWeek === targetDayOfWeek) {
+        // It's the due day today
+        nextDate = today;
+      } else {
+        nextDate = nextDay(today, targetDayOfWeek as 0 | 1 | 2 | 3 | 4 | 5 | 6);
+      }
+    }
+    
+    const dayName = dayNames[targetDayOfWeek];
+    return `Next ${dayName}`;
+  }
+  
+  if (pattern === "monthly") {
+    // If there's a due date, use that day of the month
+    const targetDayOfMonth = task.dueDate ? new Date(task.dueDate).getDate() : 1; // Default to 1st
+    
+    let nextDate = setDate(today, targetDayOfMonth);
+    
+    // If the target day has passed this month, or task is completed, go to next month
+    if (isAfter(today, nextDate) || task.completed) {
+      nextDate = setDate(addMonths(today, 1), targetDayOfMonth);
+    }
+    
+    return `Next due ${format(nextDate, "MMM d")}`;
+  }
+  
+  return null;
+}
 
 function RecurringTaskCard({ task, onEdit, onDelete }: { 
   task: Task; 
@@ -112,16 +167,14 @@ function RecurringTaskCard({ task, onEdit, onDelete }: {
                     </Badge>
                   )}
                 </div>
-                {isCompleted && task.nextDueDate && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Returns: {format(new Date(task.nextDueDate), "MMM d, yyyy")}
-                  </p>
-                )}
-                {!isCompleted && task.dueDate && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Due: {format(new Date(task.dueDate), "MMM d, yyyy")}
-                  </p>
-                )}
+                {(() => {
+                  const nextDueText = getNextDueText(task);
+                  return nextDueText ? (
+                    <p className="text-xs text-muted-foreground mt-2" data-testid={`text-next-due-${task.id}`}>
+                      {nextDueText}
+                    </p>
+                  ) : null;
+                })()}
               </div>
             </div>
             
