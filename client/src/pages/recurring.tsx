@@ -1,0 +1,477 @@
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Repeat, Calendar, Plus, Edit2, Trash2, Clock,
+  CalendarDays, CalendarClock, MoreVertical
+} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { format } from "date-fns";
+import { useState } from "react";
+import type { Task } from "@shared/schema";
+
+const patternLabels: Record<string, string> = {
+  daily: "Daily",
+  weekly: "Weekly",
+  monthly: "Monthly",
+};
+
+const patternIcons: Record<string, typeof Calendar> = {
+  daily: Clock,
+  weekly: CalendarDays,
+  monthly: CalendarClock,
+};
+
+function RecurringTaskCard({ task, onEdit, onDelete }: { 
+  task: Task; 
+  onEdit: (task: Task) => void;
+  onDelete: (taskId: string) => void;
+}) {
+  const pattern = task.recurringPattern || "daily";
+  const PatternIcon = patternIcons[pattern] || Calendar;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      layout
+    >
+      <Card className="border-card-border hover-elevate">
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Repeat className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 
+                  className="font-medium text-foreground truncate"
+                  data-testid={`text-recurring-title-${task.id}`}
+                >
+                  {task.title}
+                </h3>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <Badge variant="secondary" className="text-xs">
+                    <PatternIcon className="w-3 h-3 mr-1" />
+                    {patternLabels[pattern]}
+                  </Badge>
+                  {task.category && task.category !== "other" && (
+                    <Badge variant="outline" className="text-xs capitalize">
+                      {task.category}
+                    </Badge>
+                  )}
+                </div>
+                {task.nextDueDate && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Next: {format(new Date(task.nextDueDate), "MMM d, yyyy")}
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  size="icon" 
+                  variant="ghost"
+                  data-testid={`button-recurring-menu-${task.id}`}
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem 
+                  onClick={() => onEdit(task)}
+                  data-testid={`button-edit-recurring-${task.id}`}
+                >
+                  <Edit2 className="w-4 h-4 mr-2" />
+                  Edit Pattern
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => onDelete(task.id)}
+                  className="text-destructive"
+                  data-testid={`button-delete-recurring-${task.id}`}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Stop Recurring
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+function CreateRecurringDialog({ open, onOpenChange }: { 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { toast } = useToast();
+  const [title, setTitle] = useState("");
+  const [pattern, setPattern] = useState<string>("daily");
+  const [category, setCategory] = useState<string>("other");
+
+  const createMutation = useMutation({
+    mutationFn: async (data: { title: string; recurringPattern: string; category: string }) => {
+      return apiRequest("POST", "/api/tasks", {
+        title: data.title,
+        isRecurring: true,
+        recurringPattern: data.recurringPattern,
+        category: data.category,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({ title: "Recurring task created!" });
+      setTitle("");
+      setPattern("daily");
+      setCategory("other");
+      onOpenChange(false);
+    },
+    onError: () => {
+      toast({ 
+        title: "Failed to create task", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    createMutation.mutate({ title, recurringPattern: pattern, category });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create Recurring Task</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="title">Task Name</Label>
+            <Input
+              id="title"
+              placeholder="e.g., Take vitamins"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              data-testid="input-recurring-title"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Repeat Pattern</Label>
+            <Select value={pattern} onValueChange={setPattern}>
+              <SelectTrigger data-testid="select-recurring-pattern">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">Daily (every day)</SelectItem>
+                <SelectItem value="weekly">Weekly (every Monday)</SelectItem>
+                <SelectItem value="monthly">Monthly (1st of month)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger data-testid="select-recurring-category">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="personal">Personal</SelectItem>
+                <SelectItem value="work">Work</SelectItem>
+                <SelectItem value="shopping">Shopping</SelectItem>
+                <SelectItem value="health">Health</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={!title.trim() || createMutation.isPending}
+              data-testid="button-create-recurring"
+            >
+              {createMutation.isPending ? "Creating..." : "Create"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditPatternDialog({ 
+  task, 
+  open, 
+  onOpenChange 
+}: { 
+  task: Task | null; 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { toast } = useToast();
+  const [pattern, setPattern] = useState<string>(task?.recurringPattern || "daily");
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: { taskId: string; recurringPattern: string }) => {
+      return apiRequest("PATCH", `/api/tasks/${data.taskId}`, {
+        recurringPattern: data.recurringPattern,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({ title: "Pattern updated!" });
+      onOpenChange(false);
+    },
+    onError: () => {
+      toast({ 
+        title: "Failed to update", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!task) return;
+    updateMutation.mutate({ taskId: task.id, recurringPattern: pattern });
+  };
+
+  if (!task) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Recurring Pattern</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <p className="text-sm text-muted-foreground mb-2">Task: {task.title}</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Repeat Pattern</Label>
+            <Select value={pattern} onValueChange={setPattern}>
+              <SelectTrigger data-testid="select-edit-pattern">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">Daily (every day)</SelectItem>
+                <SelectItem value="weekly">Weekly (every Monday)</SelectItem>
+                <SelectItem value="monthly">Monthly (1st of month)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={updateMutation.isPending}
+              data-testid="button-save-pattern"
+            >
+              {updateMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function Recurring() {
+  const { toast } = useToast();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTask, setEditTask] = useState<Task | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+
+  const { data: tasks = [], isLoading } = useQuery<Task[]>({
+    queryKey: ["/api/tasks"],
+  });
+
+  const recurringTasks = tasks.filter(t => t.isRecurring && !t.completed);
+
+  const stopRecurringMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      return apiRequest("PATCH", `/api/tasks/${taskId}`, { isRecurring: false });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({ title: "Task will no longer repeat" });
+    },
+    onError: () => {
+      toast({ 
+        title: "Failed to update", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const handleEdit = (task: Task) => {
+    setEditTask(task);
+    setEditOpen(true);
+  };
+
+  const handleDelete = (taskId: string) => {
+    stopRecurringMutation.mutate(taskId);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background pb-20">
+        <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+          <header className="text-center">
+            <Skeleton className="h-8 w-40 mx-auto" />
+            <Skeleton className="h-4 w-56 mx-auto mt-2" />
+          </header>
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-24 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background pb-20">
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+        <header className="text-center">
+          <h1 className="text-2xl font-semibold text-foreground" data-testid="text-page-title">
+            Recurring Tasks
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Manage your repeating tasks
+          </p>
+        </header>
+
+        <div className="flex justify-center">
+          <Button 
+            onClick={() => setCreateOpen(true)}
+            className="gap-2"
+            data-testid="button-add-recurring"
+          >
+            <Plus className="w-4 h-4" />
+            Add Recurring Task
+          </Button>
+        </div>
+
+        {recurringTasks.length === 0 ? (
+          <Card className="border-card-border">
+            <CardContent className="py-12 text-center">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                <Repeat className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h3 className="font-medium text-foreground mb-1">No recurring tasks</h3>
+              <p className="text-sm text-muted-foreground">
+                Create a recurring task to get started with automatic repeats
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-medium text-muted-foreground">
+                Active Recurring Tasks
+              </h2>
+              <Badge variant="secondary" data-testid="text-recurring-count">
+                {recurringTasks.length}
+              </Badge>
+            </div>
+            
+            <AnimatePresence mode="popLayout">
+              {recurringTasks.map((task) => (
+                <RecurringTaskCard 
+                  key={task.id} 
+                  task={task} 
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+
+        <Card className="border-card-border bg-muted/30">
+          <CardContent className="py-4">
+            <h3 className="font-medium text-foreground mb-2">How it works</h3>
+            <ul className="text-sm text-muted-foreground space-y-1">
+              <li className="flex items-start gap-2">
+                <Clock className="w-4 h-4 mt-0.5 shrink-0" />
+                <span><strong>Daily:</strong> Repeats the next day</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CalendarDays className="w-4 h-4 mt-0.5 shrink-0" />
+                <span><strong>Weekly:</strong> Repeats every Monday</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CalendarClock className="w-4 h-4 mt-0.5 shrink-0" />
+                <span><strong>Monthly:</strong> Repeats on the 1st</span>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+
+        <CreateRecurringDialog 
+          open={createOpen} 
+          onOpenChange={setCreateOpen} 
+        />
+
+        <EditPatternDialog 
+          task={editTask} 
+          open={editOpen} 
+          onOpenChange={setEditOpen} 
+        />
+      </div>
+    </div>
+  );
+}

@@ -19,10 +19,10 @@ Preferred communication style: Simple, everyday language.
 **UI Component System**: Radix UI primitives with shadcn/ui component library, styled with Tailwind CSS. The design system uses a "minimalism with personality" philosophy - clean, spacious layouts with playful gamified elements layered on top.
 
 **Routing**: Wouter for lightweight client-side routing. Four main views:
-- Home (task list and input)
-- Monster (companion stats and visualization)
-- Stats (productivity metrics)
-- Settings (theme, preferences, data management)
+- Home (`/`) - Task list and input
+- Progress (`/progress`) - Combined monster companion and statistics (achievements unlock monsters)
+- Recurring (`/recurring`) - Dedicated page for managing recurring/repeating tasks
+- Settings (`/settings`) - Theme, preferences, data management
 
 **State Management**: TanStack Query (React Query) for server state management with optimistic updates. No additional global state library needed - component state and React Query handle all data flow.
 

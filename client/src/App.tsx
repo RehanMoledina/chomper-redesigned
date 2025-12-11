@@ -8,8 +8,8 @@ import { MonsterProvider } from "@/hooks/use-monster";
 import { BottomNav } from "@/components/bottom-nav";
 import { useAuth } from "@/hooks/useAuth";
 import Home from "@/pages/home";
-import Monster from "@/pages/monster";
-import Stats from "@/pages/stats";
+import Progress from "@/pages/progress";
+import Recurring from "@/pages/recurring";
 import Settings from "@/pages/settings";
 import Landing from "@/pages/landing";
 import Login from "@/pages/login";
@@ -24,8 +24,8 @@ function AuthenticatedRouter() {
     <>
       <Switch>
         <Route path="/" component={Home} />
-        <Route path="/monster" component={Monster} />
-        <Route path="/stats" component={Stats} />
+        <Route path="/progress" component={Progress} />
+        <Route path="/recurring" component={Recurring} />
         <Route path="/settings" component={Settings} />
         <Route path="/verify-email" component={VerifyEmail} />
         <Route component={NotFound} />

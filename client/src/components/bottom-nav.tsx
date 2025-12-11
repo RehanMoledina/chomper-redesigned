@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { CheckSquare, Smile, BarChart3, Settings } from "lucide-react";
+import { CheckSquare, TrendingUp, Repeat, Settings } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface NavItem {
@@ -11,8 +11,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: "/", icon: CheckSquare, label: "Tasks", testId: "nav-tasks" },
-  { href: "/monster", icon: Smile, label: "Chomper", testId: "nav-monster" },
-  { href: "/stats", icon: BarChart3, label: "Stats", testId: "nav-stats" },
+  { href: "/progress", icon: TrendingUp, label: "Progress", testId: "nav-progress" },
+  { href: "/recurring", icon: Repeat, label: "Recurring", testId: "nav-recurring" },
   { href: "/settings", icon: Settings, label: "Settings", testId: "nav-settings" },
 ];
 
