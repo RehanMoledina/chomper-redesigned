@@ -67,31 +67,14 @@ function getNextDueText(task: Task): string | null {
   
   if (pattern === "daily") {
     // Next day
-    const nextDate = addDays(today, 1);
-    return `Tomorrow`;
+    return `Next due tomorrow`;
   }
   
   if (pattern === "weekly") {
     // If there's a due date, use that day of the week
     const targetDayOfWeek = task.dueDate ? getDay(baseDate) : 1; // Default to Monday (1)
-    const todayDayOfWeek = getDay(today);
-    
-    let nextDate: Date;
-    if (task.completed) {
-      // Task completed, next occurrence is next week's day
-      nextDate = nextDay(today, targetDayOfWeek as 0 | 1 | 2 | 3 | 4 | 5 | 6);
-    } else {
-      // Task not completed
-      if (todayDayOfWeek === targetDayOfWeek) {
-        // It's the due day today
-        nextDate = today;
-      } else {
-        nextDate = nextDay(today, targetDayOfWeek as 0 | 1 | 2 | 3 | 4 | 5 | 6);
-      }
-    }
-    
     const dayName = dayNames[targetDayOfWeek];
-    return `Next ${dayName}`;
+    return `Next due ${dayName}`;
   }
   
   if (pattern === "monthly") {
