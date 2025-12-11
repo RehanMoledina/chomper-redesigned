@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Repeat, Calendar, Plus, Edit2, Trash2, Clock,
-  CalendarDays, CalendarClock, MoreVertical
+  CalendarDays, CalendarClock, MoreVertical, CheckCircle2
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,7 @@ function RecurringTaskCard({ task, onEdit, onDelete }: {
 }) {
   const pattern = task.recurringPattern || "daily";
   const PatternIcon = patternIcons[pattern] || Calendar;
+  const isCompleted = task.completed;
 
   return (
     <motion.div
@@ -63,16 +64,22 @@ function RecurringTaskCard({ task, onEdit, onDelete }: {
       exit={{ opacity: 0, y: -10 }}
       layout
     >
-      <Card className="border-card-border hover-elevate">
+      <Card className={`border-card-border hover-elevate ${isCompleted ? "opacity-70" : ""}`}>
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3 flex-1 min-w-0">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <Repeat className="w-5 h-5 text-primary" />
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                isCompleted ? "bg-emerald-500/10" : "bg-primary/10"
+              }`}>
+                {isCompleted ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                ) : (
+                  <Repeat className="w-5 h-5 text-primary" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <h3 
-                  className="font-medium text-foreground truncate"
+                  className={`font-medium truncate ${isCompleted ? "text-muted-foreground" : "text-foreground"}`}
                   data-testid={`text-recurring-title-${task.id}`}
                 >
                   {task.title}
@@ -82,6 +89,11 @@ function RecurringTaskCard({ task, onEdit, onDelete }: {
                     <PatternIcon className="w-3 h-3 mr-1" />
                     {patternLabels[pattern]}
                   </Badge>
+                  {isCompleted && (
+                    <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">
+                      Done for now
+                    </Badge>
+                  )}
                   {task.category && task.category !== "other" && (
                     <Badge variant="outline" className="text-xs capitalize">
                       {task.category}
@@ -91,6 +103,11 @@ function RecurringTaskCard({ task, onEdit, onDelete }: {
                 {task.nextDueDate && (
                   <p className="text-xs text-muted-foreground mt-2">
                     Next: {format(new Date(task.nextDueDate), "MMM d, yyyy")}
+                  </p>
+                )}
+                {isCompleted && task.dueDate && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Returns: {format(new Date(task.dueDate), "MMM d, yyyy")}
                   </p>
                 )}
               </div>
@@ -337,7 +354,8 @@ export default function Recurring() {
     queryKey: ["/api/tasks"],
   });
 
-  const recurringTasks = tasks.filter(t => t.isRecurring && !t.completed);
+  // Show all recurring tasks (completed or not) so users can always manage them
+  const recurringTasks = tasks.filter(t => t.isRecurring);
 
   const stopRecurringMutation = useMutation({
     mutationFn: async (taskId: string) => {
