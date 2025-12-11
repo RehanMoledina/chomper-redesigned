@@ -89,7 +89,7 @@ Preferred communication style: Simple, everyday language.
    - userId (varchar, references users.id)
    - title (text)
    - completed (boolean, default false)
-   - category (text: personal, work, shopping, health, other)
+   - category (text: personal, work, health, other)
    - notes (text, nullable)
    - dueDate (timestamp, nullable)
    - createdAt (timestamp, auto-generated)
