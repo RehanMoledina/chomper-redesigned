@@ -65,12 +65,12 @@ const monsterColors: Record<MonsterType, Record<MonsterState, string>> = {
   },
 };
 
-export const monsterInfo: Record<MonsterType, { name: string; description: string; requirement: string }> = {
-  chomper: { name: "Chomper", description: "The classic green friend", requirement: "Always available" },
-  blaze: { name: "Blaze", description: "A fiery companion", requirement: "Complete 10 tasks" },
-  sparkle: { name: "Sparkle", description: "A magical friend", requirement: "Reach 75% happiness" },
-  royal: { name: "Royal", description: "A noble companion", requirement: "Maintain a 7-day streak" },
-  cosmic: { name: "Cosmic", description: "A stellar friend", requirement: "Complete 50 tasks" },
+export const monsterInfo: Record<MonsterType, { name: string; description: string; requirement: string; type: string; value: number }> = {
+  chomper: { name: "Chomper", description: "The classic green friend", requirement: "Always available", type: "default", value: 0 },
+  blaze: { name: "Blaze", description: "A fiery companion", requirement: "Complete 10 tasks", type: "tasks", value: 10 },
+  sparkle: { name: "Sparkle", description: "A magical friend", requirement: "Complete 25 tasks", type: "tasks", value: 25 },
+  royal: { name: "Royal", description: "A noble companion", requirement: "Maintain a 7-day streak", type: "streak", value: 7 },
+  cosmic: { name: "Cosmic", description: "A stellar friend", requirement: "Complete 50 tasks", type: "tasks", value: 50 },
 };
 
 export function MonsterCompanion({

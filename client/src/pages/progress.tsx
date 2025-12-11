@@ -86,8 +86,8 @@ export default function Progress() {
   const progress = totalToday > 0 ? (completedToday / totalToday) * 100 : 0;
 
   const totalCompleted = tasks.filter(t => t.completed).length;
-  const happinessLevel = stats?.happinessLevel ?? 50;
   const currentStreak = stats?.currentStreak ?? 0;
+  const longestStreak = stats?.longestStreak ?? 0;
   const tasksChomped = stats?.tasksChomped ?? totalCompleted;
 
   // Weekly recurring tasks stats
@@ -101,18 +101,77 @@ export default function Progress() {
   const totalMonthlyTasks = monthlyRecurringTasks.length;
 
   const getMonsterState = () => {
-    if (happinessLevel >= 80) return "celebrating";
-    if (happinessLevel >= 50) return "happy";
-    if (happinessLevel >= 20) return "idle";
+    if (completedToday >= 5) return "celebrating";
+    if (completedToday >= 2) return "happy";
+    if (completedToday >= 1) return "idle";
     return "hungry";
   };
 
   const getMonsterMessage = () => {
-    if (happinessLevel >= 80) return "I love you! You're the best!";
-    if (happinessLevel >= 50) return "We make a great team!";
-    if (happinessLevel >= 20) return "Let's get productive!";
+    if (completedToday >= 5) return "I love you! You're the best!";
+    if (completedToday >= 2) return "We make a great team!";
+    if (completedToday >= 1) return "Let's get productive!";
     return "I'm so hungry... need tasks!";
   };
+
+  // Calculate next monster unlock progress
+  const getNextMonsterProgress = () => {
+    const monsters = [
+      { name: "Blaze", type: "tasks", value: 10 },
+      { name: "Sparkle", type: "tasks", value: 25 },
+      { name: "Cosmic", type: "tasks", value: 50 },
+      { name: "Royal", type: "streak", value: 7 },
+    ];
+
+    // Find next task-based monster to unlock
+    const nextTaskMonster = monsters
+      .filter(m => m.type === "tasks" && tasksChomped < m.value)
+      .sort((a, b) => a.value - b.value)[0];
+
+    // Find next streak-based monster to unlock
+    const nextStreakMonster = monsters
+      .filter(m => m.type === "streak" && longestStreak < m.value)
+      .sort((a, b) => a.value - b.value)[0];
+
+    // Return the one that's closer to being achieved
+    if (nextTaskMonster && nextStreakMonster) {
+      const taskProgress = tasksChomped / nextTaskMonster.value;
+      const streakProgress = longestStreak / nextStreakMonster.value;
+      if (taskProgress >= streakProgress) {
+        return { 
+          monster: nextTaskMonster, 
+          current: tasksChomped, 
+          progress: (tasksChomped / nextTaskMonster.value) * 100,
+          label: `${tasksChomped}/${nextTaskMonster.value} tasks`
+        };
+      } else {
+        return { 
+          monster: nextStreakMonster, 
+          current: longestStreak, 
+          progress: (longestStreak / nextStreakMonster.value) * 100,
+          label: `${longestStreak}/${nextStreakMonster.value} day streak`
+        };
+      }
+    } else if (nextTaskMonster) {
+      return { 
+        monster: nextTaskMonster, 
+        current: tasksChomped, 
+        progress: (tasksChomped / nextTaskMonster.value) * 100,
+        label: `${tasksChomped}/${nextTaskMonster.value} tasks`
+      };
+    } else if (nextStreakMonster) {
+      return { 
+        monster: nextStreakMonster, 
+        current: longestStreak, 
+        progress: (longestStreak / nextStreakMonster.value) * 100,
+        label: `${longestStreak}/${nextStreakMonster.value} day streak`
+      };
+    }
+
+    return null; // All monsters unlocked
+  };
+
+  const nextMonster = getNextMonsterProgress();
 
   if (isLoading) {
     return (
@@ -229,29 +288,43 @@ export default function Progress() {
           </Card>
         </div>
 
-        <Card className="border-card-border">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-muted-foreground">Monster Happiness</span>
-              <span className="text-sm font-semibold">{happinessLevel}%</span>
-            </div>
-            <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
-              <motion.div
-                className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${happinessLevel}%` }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              {happinessLevel < 30 
-                ? "Complete some tasks to make Chomper happier!"
-                : happinessLevel < 70
-                ? "Chomper is feeling good. Keep it up!"
-                : "Chomper is thriving! You're amazing!"}
-            </p>
-          </CardContent>
-        </Card>
+        {nextMonster ? (
+          <Card className="border-card-border">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Next Monster: <span className="text-foreground font-semibold">{nextMonster.monster.name}</span>
+                </span>
+                <span className="text-sm font-semibold">{nextMonster.label}</span>
+              </div>
+              <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(nextMonster.progress, 100)}%` }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                {nextMonster.progress < 30 
+                  ? `Keep completing tasks to unlock ${nextMonster.monster.name}!`
+                  : nextMonster.progress < 70
+                  ? `You're making great progress toward ${nextMonster.monster.name}!`
+                  : `Almost there! ${nextMonster.monster.name} is within reach!`}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-card-border">
+            <CardContent className="pt-4 text-center">
+              <Sparkles className="h-8 w-8 text-primary mx-auto mb-2" />
+              <p className="text-sm font-medium text-foreground">All Monsters Unlocked!</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                You've collected all monster companions. Amazing work!
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <MonsterSelector />
 

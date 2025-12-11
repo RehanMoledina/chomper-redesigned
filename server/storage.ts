@@ -360,7 +360,6 @@ export class DatabaseStorage implements IStorage {
     }
 
     const newLongestStreak = Math.max(stats.longestStreak, newStreak);
-    const newHappiness = Math.min(100, stats.happinessLevel + 5);
 
     await db
       .update(monsterStats)
@@ -369,7 +368,6 @@ export class DatabaseStorage implements IStorage {
         currentStreak: newStreak,
         longestStreak: newLongestStreak,
         lastActiveDate: today,
-        happinessLevel: newHappiness,
       })
       .where(eq(monsterStats.id, stats.id));
   }
@@ -386,17 +384,22 @@ export class DatabaseStorage implements IStorage {
     if (existing.length > 0) return;
 
     const defaultAchievements: InsertAchievement[] = [
+      // Task completion achievements
       { id: `${userId}_first_chomp`, userId, name: "First Bite", description: "Complete your first task", icon: "cookie", requirement: 1, type: "tasks_chomped" },
       { id: `${userId}_chomp_10`, userId, name: "Getting Hungry", description: "Complete 10 tasks", icon: "utensils", requirement: 10, type: "tasks_chomped" },
       { id: `${userId}_chomp_25`, userId, name: "Appetite Growing", description: "Complete 25 tasks", icon: "chef-hat", requirement: 25, type: "tasks_chomped" },
       { id: `${userId}_chomp_50`, userId, name: "Hungry Monster", description: "Complete 50 tasks", icon: "drumstick", requirement: 50, type: "tasks_chomped" },
       { id: `${userId}_chomp_100`, userId, name: "Feast Master", description: "Complete 100 tasks", icon: "crown", requirement: 100, type: "tasks_chomped" },
+      // Streak achievements
       { id: `${userId}_streak_3`, userId, name: "Hat Trick", description: "Maintain a 3-day streak", icon: "flame", requirement: 3, type: "streak" },
       { id: `${userId}_streak_7`, userId, name: "Week Warrior", description: "Maintain a 7-day streak", icon: "zap", requirement: 7, type: "streak" },
       { id: `${userId}_streak_14`, userId, name: "Fortnight Fighter", description: "Maintain a 14-day streak", icon: "star", requirement: 14, type: "streak" },
       { id: `${userId}_streak_30`, userId, name: "Monthly Master", description: "Maintain a 30-day streak", icon: "trophy", requirement: 30, type: "streak" },
-      { id: `${userId}_happiness_75`, userId, name: "Joyful Journey", description: "Reach 75% happiness", icon: "heart", requirement: 75, type: "happiness" },
-      { id: `${userId}_happiness_100`, userId, name: "Pure Bliss", description: "Reach 100% happiness", icon: "sparkles", requirement: 100, type: "happiness" },
+      // Monster unlock achievements
+      { id: `${userId}_monster_blaze`, userId, name: "Blaze Unlocked", description: "Unlock Blaze monster", icon: "flame", requirement: 10, type: "monster_unlock" },
+      { id: `${userId}_monster_sparkle`, userId, name: "Sparkle Unlocked", description: "Unlock Sparkle monster", icon: "sparkles", requirement: 25, type: "monster_unlock" },
+      { id: `${userId}_monster_royal`, userId, name: "Royal Unlocked", description: "Unlock Royal monster", icon: "crown", requirement: 7, type: "monster_unlock_streak" },
+      { id: `${userId}_monster_cosmic`, userId, name: "Cosmic Unlocked", description: "Unlock Cosmic monster", icon: "star", requirement: 50, type: "monster_unlock" },
     ];
 
     await db.insert(achievements).values(defaultAchievements);
@@ -429,13 +432,12 @@ export class DatabaseStorage implements IStorage {
 
       switch (achievement.type) {
         case "tasks_chomped":
+        case "monster_unlock":
           shouldUnlock = stats.tasksChomped >= achievement.requirement;
           break;
         case "streak":
+        case "monster_unlock_streak":
           shouldUnlock = stats.longestStreak >= achievement.requirement;
-          break;
-        case "happiness":
-          shouldUnlock = stats.happinessLevel >= achievement.requirement;
           break;
       }
 
