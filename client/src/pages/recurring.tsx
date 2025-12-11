@@ -52,7 +52,7 @@ const categoryFilters = [
   { value: "all", label: "All" },
   { value: "personal", label: "Personal", color: "bg-blue-500" },
   { value: "work", label: "Work", color: "bg-purple-500" },
-  { value: "health", label: "Health", color: "bg-emerald-500" },
+  { value: "money", label: "Money", color: "bg-emerald-500" },
   { value: "other", label: "Other", color: "bg-gray-500" },
 ];
 
@@ -241,7 +241,7 @@ function CreateRecurringDialog({ open, onOpenChange }: {
               <SelectContent>
                 <SelectItem value="personal">Personal</SelectItem>
                 <SelectItem value="work">Work</SelectItem>
-                <SelectItem value="health">Health</SelectItem>
+                <SelectItem value="money">Money</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>

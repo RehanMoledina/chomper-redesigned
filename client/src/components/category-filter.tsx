@@ -5,7 +5,7 @@ const categories = [
   { value: "all", label: "All", color: "bg-foreground" },
   { value: "personal", label: "Personal", color: "bg-blue-500" },
   { value: "work", label: "Work", color: "bg-purple-500" },
-  { value: "health", label: "Health", color: "bg-emerald-500" },
+  { value: "money", label: "Money", color: "bg-emerald-500" },
   { value: "other", label: "Other", color: "bg-gray-500" },
 ];
 
