@@ -21,6 +21,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -215,14 +218,20 @@ function CreateRecurringDialog({ open, onOpenChange }: {
   const [title, setTitle] = useState("");
   const [pattern, setPattern] = useState<string>("daily");
   const [category, setCategory] = useState<string>("other");
+  const [dueDate, setDueDate] = useState<Date | undefined>();
+  const [notes, setNotes] = useState("");
+  const [showNotes, setShowNotes] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const createMutation = useMutation({
-    mutationFn: async (data: { title: string; recurringPattern: string; category: string }) => {
+    mutationFn: async (data: { title: string; recurringPattern: string; category: string; dueDate: Date | null; notes: string | null }) => {
       return apiRequest("POST", "/api/tasks", {
         title: data.title,
         isRecurring: true,
         recurringPattern: data.recurringPattern,
         category: data.category,
+        dueDate: data.dueDate,
+        notes: data.notes,
       });
     },
     onSuccess: () => {
@@ -231,6 +240,9 @@ function CreateRecurringDialog({ open, onOpenChange }: {
       setTitle("");
       setPattern("daily");
       setCategory("other");
+      setDueDate(undefined);
+      setNotes("");
+      setShowNotes(false);
       onOpenChange(false);
     },
     onError: () => {
@@ -244,7 +256,13 @@ function CreateRecurringDialog({ open, onOpenChange }: {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    createMutation.mutate({ title, recurringPattern: pattern, category });
+    createMutation.mutate({ 
+      title, 
+      recurringPattern: pattern, 
+      category,
+      dueDate: dueDate || null,
+      notes: notes.trim() || null,
+    });
   };
 
   const categories = [
@@ -279,6 +297,32 @@ function CreateRecurringDialog({ open, onOpenChange }: {
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1 px-2 text-xs font-normal"
+                  data-testid="button-recurring-due-date"
+                >
+                  <Calendar className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{dueDate ? format(dueDate, "MMM d") : "Due Date"}</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={dueDate}
+                  onSelect={(date) => {
+                    setDueDate(date);
+                    setCalendarOpen(false);
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger className="h-7 w-auto min-w-0 gap-1 px-2 text-xs" data-testid="select-recurring-category">
                 <Tag className="h-3 w-3 shrink-0" />
@@ -309,10 +353,33 @@ function CreateRecurringDialog({ open, onOpenChange }: {
                 ))}
               </SelectContent>
             </Select>
+
+            <Button
+              type="button"
+              variant={showNotes || notes ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setShowNotes(!showNotes)}
+              className="h-7 gap-1 px-2 text-xs font-normal"
+              data-testid="button-recurring-notes"
+            >
+              <FileText className="h-3 w-3 shrink-0" />
+              <span>Task Notes</span>
+            </Button>
           </div>
+
+          {showNotes && (
+            <Textarea
+              placeholder="Add notes for this recurring task..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="min-h-[60px] text-sm resize-none"
+              data-testid="input-recurring-notes"
+            />
+          )}
 
           <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
             Selected: <span className="font-medium capitalize">{category}</span> task, repeating <span className="font-medium">{pattern}</span>
+            {dueDate && <>, starting <span className="font-medium">{format(dueDate, "MMM d")}</span></>}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
