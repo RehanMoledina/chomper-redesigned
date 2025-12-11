@@ -89,9 +89,13 @@ function RecurringTaskCard({ task, onEdit, onDelete }: {
                     <PatternIcon className="w-3 h-3 mr-1" />
                     {patternLabels[pattern]}
                   </Badge>
-                  {isCompleted && (
+                  {isCompleted ? (
                     <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">
                       Done for now
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                      Awaiting completion
                     </Badge>
                   )}
                   {task.category && task.category !== "other" && (
@@ -100,14 +104,14 @@ function RecurringTaskCard({ task, onEdit, onDelete }: {
                     </Badge>
                   )}
                 </div>
-                {task.nextDueDate && (
+                {isCompleted && task.nextDueDate && (
                   <p className="text-xs text-muted-foreground mt-2">
-                    Next: {format(new Date(task.nextDueDate), "MMM d, yyyy")}
+                    Returns: {format(new Date(task.nextDueDate), "MMM d, yyyy")}
                   </p>
                 )}
-                {isCompleted && task.dueDate && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Returns: {format(new Date(task.dueDate), "MMM d, yyyy")}
+                {!isCompleted && task.dueDate && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Due: {format(new Date(task.dueDate), "MMM d, yyyy")}
                   </p>
                 )}
               </div>
@@ -354,8 +358,40 @@ export default function Recurring() {
     queryKey: ["/api/tasks"],
   });
 
-  // Show all recurring tasks (completed or not) so users can always manage them
-  const recurringTasks = tasks.filter(t => t.isRecurring);
+  // Group recurring tasks by title + pattern to show each only once
+  // For each group, show the active (non-completed) one, or the most recent completed one
+  const recurringTasks = (() => {
+    const allRecurring = tasks.filter(t => t.isRecurring);
+    const grouped = new Map<string, Task[]>();
+    
+    // Group by title + pattern
+    allRecurring.forEach(task => {
+      const key = `${task.title.toLowerCase().trim()}_${task.recurringPattern || 'daily'}`;
+      const existing = grouped.get(key) || [];
+      existing.push(task);
+      grouped.set(key, existing);
+    });
+    
+    // For each group, pick the best representative task
+    const uniqueTasks: Task[] = [];
+    grouped.forEach(taskGroup => {
+      // Prefer non-completed task (the active one)
+      const activeTask = taskGroup.find(t => !t.completed);
+      if (activeTask) {
+        uniqueTasks.push(activeTask);
+      } else {
+        // All completed - pick the most recently completed one
+        const sorted = taskGroup.sort((a, b) => {
+          const aDate = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+          const bDate = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+          return bDate - aDate;
+        });
+        if (sorted[0]) uniqueTasks.push(sorted[0]);
+      }
+    });
+    
+    return uniqueTasks;
+  })();
 
   const stopRecurringMutation = useMutation({
     mutationFn: async (taskId: string) => {
