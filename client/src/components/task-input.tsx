@@ -91,18 +91,18 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
         </div>
 
         {isExpanded && (
-          <div className="flex items-center gap-2 mt-2 px-1">
+          <div className="flex flex-wrap items-center gap-1.5 mt-2 px-1">
             <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-8 gap-1.5 text-xs font-normal"
+                  className="h-7 gap-1 px-2 text-xs font-normal"
                   data-testid="button-due-date"
                 >
-                  <Calendar className="h-3.5 w-3.5" />
-                  {dueDate ? format(dueDate, "MMM d") : "Due date"}
+                  <Calendar className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{dueDate ? format(dueDate, "MMM d") : "Due"}</span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -119,8 +119,8 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
             </Popover>
 
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="h-8 w-auto gap-1.5 text-xs" data-testid="select-category">
-                <Tag className="h-3.5 w-3.5" />
+              <SelectTrigger className="h-7 w-auto min-w-0 gap-1 px-2 text-xs" data-testid="select-category">
+                <Tag className="h-3 w-3 shrink-0" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -136,8 +136,8 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
             </Select>
 
             <Select value={repeatPattern} onValueChange={setRepeatPattern}>
-              <SelectTrigger className="h-8 w-auto gap-1.5 text-xs" data-testid="select-repeat">
-                <Repeat className="h-3.5 w-3.5" />
+              <SelectTrigger className="h-7 w-auto min-w-0 gap-1 px-2 text-xs" data-testid="select-repeat">
+                <Repeat className="h-3 w-3 shrink-0" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -154,11 +154,11 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
               variant={showNotes || notes ? "secondary" : "outline"}
               size="sm"
               onClick={() => setShowNotes(!showNotes)}
-              className="h-8 gap-1.5 text-xs font-normal"
+              className="h-7 gap-1 px-2 text-xs font-normal"
               data-testid="button-toggle-notes"
             >
-              <FileText className="h-3.5 w-3.5" />
-              Notes
+              <FileText className="h-3 w-3 shrink-0" />
+              <span>Notes</span>
             </Button>
 
             {(dueDate || repeatPattern !== "none" || notes) && (
@@ -172,7 +172,7 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
                   setNotes("");
                   setShowNotes(false);
                 }}
-                className="h-8 px-2 text-xs text-muted-foreground"
+                className="h-7 px-2 text-xs text-muted-foreground"
               >
                 Clear
               </Button>
