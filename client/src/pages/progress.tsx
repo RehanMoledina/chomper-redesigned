@@ -6,7 +6,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MonsterCompanion, monsterInfo } from "@/components/monster-companion";
 import { MonsterSelector } from "@/components/monster-selector";
-import { Achievements } from "@/components/achievements";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMonster } from "@/hooks/use-monster";
 import { startOfDay } from "date-fns";
@@ -333,8 +332,6 @@ export default function Progress() {
         )}
 
         <MonsterSelector />
-
-        <Achievements />
       </div>
     </div>
   );
