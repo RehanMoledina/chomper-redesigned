@@ -40,16 +40,18 @@ export function MonsterProvider({ children }: { children: React.ReactNode }) {
     const unlocked: MonsterType[] = ["chomper"];
     
     if (achievements.length > 0) {
-      const hasTask10 = achievements.find(a => a.id === "chomp_10" && a.unlockedAt);
+      // Achievement IDs are stored as `${userId}_achievement_name`
+      // Check if the achievement is unlocked by looking for the suffix
+      const hasTask10 = achievements.find(a => a.id.endsWith("_chomp_10") && a.unlockedAt);
       if (hasTask10) unlocked.push("blaze");
       
-      const hasHappiness75 = achievements.find(a => a.id === "happiness_75" && a.unlockedAt);
+      const hasHappiness75 = achievements.find(a => a.id.endsWith("_happiness_75") && a.unlockedAt);
       if (hasHappiness75) unlocked.push("sparkle");
       
-      const hasStreak7 = achievements.find(a => a.id === "streak_7" && a.unlockedAt);
+      const hasStreak7 = achievements.find(a => a.id.endsWith("_streak_7") && a.unlockedAt);
       if (hasStreak7) unlocked.push("royal");
       
-      const hasTask50 = achievements.find(a => a.id === "chomp_50" && a.unlockedAt);
+      const hasTask50 = achievements.find(a => a.id.endsWith("_chomp_50") && a.unlockedAt);
       if (hasTask50) unlocked.push("cosmic");
     }
     
