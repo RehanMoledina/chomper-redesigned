@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Repeat, Calendar, Plus, Edit2, Trash2, Clock,
-  CalendarDays, CalendarClock, MoreVertical, CheckCircle2
+  CalendarDays, CalendarClock, MoreVertical, CheckCircle2, Tag, FileText
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -247,6 +247,19 @@ function CreateRecurringDialog({ open, onOpenChange }: {
     createMutation.mutate({ title, recurringPattern: pattern, category });
   };
 
+  const categories = [
+    { value: "personal", label: "Personal", color: "bg-blue-500" },
+    { value: "work", label: "Work", color: "bg-purple-500" },
+    { value: "money", label: "Money", color: "bg-emerald-500" },
+    { value: "other", label: "Other", color: "bg-gray-500" },
+  ];
+
+  const repeatPatterns = [
+    { value: "daily", label: "Daily" },
+    { value: "weekly", label: "Weekly" },
+    { value: "monthly", label: "Monthly" },
+  ];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -265,33 +278,41 @@ function CreateRecurringDialog({ open, onOpenChange }: {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Repeat Pattern</Label>
-            <Select value={pattern} onValueChange={setPattern}>
-              <SelectTrigger data-testid="select-recurring-pattern">
-                <SelectValue />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger className="h-7 w-auto min-w-0 gap-1 px-2 text-xs" data-testid="select-recurring-category">
+                <Tag className="h-3 w-3 shrink-0" />
+                <span>Category</span>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="daily">Daily (every day)</SelectItem>
-                <SelectItem value="weekly">Weekly (every Monday)</SelectItem>
-                <SelectItem value="monthly">Monthly (1st of month)</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.value} value={cat.value}>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${cat.color}`} />
+                      {cat.label}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={pattern} onValueChange={setPattern}>
+              <SelectTrigger className="h-7 w-auto min-w-0 gap-1 px-2 text-xs" data-testid="select-recurring-pattern">
+                <Repeat className="h-3 w-3 shrink-0" />
+                <span>Repeat</span>
+              </SelectTrigger>
+              <SelectContent>
+                {repeatPatterns.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>
+                    {p.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label>Category</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger data-testid="select-recurring-category">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="personal">Personal</SelectItem>
-                <SelectItem value="work">Work</SelectItem>
-                <SelectItem value="money">Money</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
+            Selected: <span className="font-medium capitalize">{category}</span> task, repeating <span className="font-medium">{pattern}</span>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
