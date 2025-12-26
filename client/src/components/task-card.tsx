@@ -70,10 +70,10 @@ export const TaskCard = memo(forwardRef<HTMLDivElement, TaskCardProps>(function 
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ 
-        opacity: isDeleting || isCompleting ? 0 : 1, 
+        opacity: isDeleting || (isCompleting && !task.completed) ? 0 : 1, 
         y: 0,
         x: isDeleting ? -20 : 0,
-        scale: isCompleting ? 0.95 : 1,
+        scale: isCompleting && !task.completed ? 0.95 : 1,
       }}
       exit={{ opacity: 0, x: -20 }}
       transition={{ duration: 0.2 }}
