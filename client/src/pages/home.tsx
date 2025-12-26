@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { startOfDay, isBefore, isToday, isValid } from "date-fns";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { TaskInput } from "@/components/task-input";
 import { TaskList } from "@/components/task-list";
@@ -77,16 +78,37 @@ export default function Home() {
     onMutate: (id) => {
       setCompletingTaskId(id);
     },
-    onSuccess: async () => {
-      const messages = [
-        "NOM NOM NOM!",
-        "Delicious task!",
-        "CHOMPED!",
-        "Yummy productivity!",
-        "That was tasty!",
-      ];
-      setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)]);
-      setShowCelebration(true);
+    onSuccess: async (_, completedTaskId) => {
+      // Check if all tasks for today are now completed (excluding the just-completed task)
+      // Uses same logic as TaskList "today" view: overdue, due today, or no due date
+      const today = startOfDay(new Date());
+      const remainingTodayTasks = tasks.filter((task) => {
+        if (task.id === completedTaskId) return false; // Exclude the just-completed task
+        if (task.completed) return false; // Already completed
+        
+        // No due date = show in today view
+        if (!task.dueDate) return true;
+        
+        const dueDate = new Date(task.dueDate);
+        // Invalid date = treat as no due date (show in today)
+        if (!isValid(dueDate)) return true;
+        
+        // Overdue (before today) or due today
+        return isBefore(dueDate, today) || isToday(dueDate);
+      });
+
+      // Only celebrate if all today's tasks are now complete
+      if (remainingTodayTasks.length === 0) {
+        const messages = [
+          "ALL DONE! NOM NOM!",
+          "Day complete! Delicious!",
+          "CHOMPED everything!",
+          "Perfect day!",
+          "All tasks devoured!",
+        ];
+        setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)]);
+        setShowCelebration(true);
+      }
       
       try {
         const res = await apiRequest("POST", "/api/achievements/check");
