@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MonsterCompanion } from "@/components/monster-companion";
-import { CheckCircle2, Flame, Trophy, Repeat } from "lucide-react";
+import { CheckCircle2, Trophy, Repeat } from "lucide-react";
 
 export default function Landing() {
   return (
@@ -37,7 +37,7 @@ export default function Landing() {
             <Link href="/register">Get Started</Link>
           </Button>
 
-          <div className="grid grid-cols-2 gap-4 pt-8">
+          <div className="grid grid-cols-3 gap-3 pt-8">
             <Card className="border-card-border">
               <CardContent className="pt-4 text-center">
                 <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-primary" />
@@ -50,20 +50,10 @@ export default function Landing() {
 
             <Card className="border-card-border">
               <CardContent className="pt-4 text-center">
-                <Flame className="h-8 w-8 mx-auto mb-2 text-amber-500" />
-                <h3 className="font-semibold text-sm">Build Streaks</h3>
+                <Trophy className="h-8 w-8 mx-auto mb-2 text-amber-500" />
+                <h3 className="font-semibold text-sm">Track Progress</h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Stay consistent and grow your streak
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-card-border">
-              <CardContent className="pt-4 text-center">
-                <Trophy className="h-8 w-8 mx-auto mb-2 text-emerald-500" />
-                <h3 className="font-semibold text-sm">Earn Achievements</h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Unlock rewards as you progress
+                  Build streaks and earn achievements
                 </p>
               </CardContent>
             </Card>
