@@ -237,14 +237,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteCompletedTasks(userId: string): Promise<number> {
-    // Only delete completed tasks that are NOT linked to a recurring template
-    // Tasks linked to templates should only be deleted when the template is deleted
+    // Delete all completed tasks (including recurring task instances)
+    // This does not affect the recurring templates themselves
     const result = await db
       .delete(tasks)
       .where(and(
         eq(tasks.completed, true), 
-        eq(tasks.userId, userId),
-        isNull(tasks.templateId) // Don't delete tasks linked to templates
+        eq(tasks.userId, userId)
       ))
       .returning();
     return result.length;
