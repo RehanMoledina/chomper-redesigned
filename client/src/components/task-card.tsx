@@ -1,5 +1,5 @@
 import { useState, forwardRef, memo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Trash2, Calendar, Repeat, Pencil, FileText } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,6 @@ const categoryColors: Record<string, string> = {
 };
 
 export const TaskCard = memo(forwardRef<HTMLDivElement, TaskCardProps>(function TaskCard({ task, onComplete, onUncomplete, onDelete, onEdit, isCompleting }, ref) {
-  const [showActions, setShowActions] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleToggleComplete = () => {
@@ -78,11 +77,9 @@ export const TaskCard = memo(forwardRef<HTMLDivElement, TaskCardProps>(function 
       }}
       exit={{ opacity: 0, x: -20 }}
       transition={{ duration: 0.2 }}
-      className={`group relative flex items-start gap-3 p-4 bg-card border border-card-border rounded-lg shadow-sm transition-colors hover-elevate ${
+      className={`group relative flex items-start gap-3 p-4 bg-card border border-card-border rounded-lg shadow-sm ${
         task.completed ? "opacity-60" : ""
       }`}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
       data-testid={`task-card-${task.id}`}
     >
         <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-lg ${categoryColor}`} />
@@ -140,37 +137,28 @@ export const TaskCard = memo(forwardRef<HTMLDivElement, TaskCardProps>(function 
           )}
         </div>
 
-        <AnimatePresence>
-          {(showActions || task.completed) && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              className="shrink-0 flex items-center gap-1"
+        <div className="shrink-0 flex items-center gap-1">
+          {!task.completed && onEdit && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onEdit(task)}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              data-testid={`button-edit-task-${task.id}`}
             >
-              {!task.completed && onEdit && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onEdit(task)}
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                  data-testid={`button-edit-task-${task.id}`}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleDelete}
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                data-testid={`button-delete-task-${task.id}`}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </motion.div>
+              <Pencil className="h-4 w-4" />
+            </Button>
           )}
-        </AnimatePresence>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleDelete}
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            data-testid={`button-delete-task-${task.id}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </motion.div>
   );
 }));
