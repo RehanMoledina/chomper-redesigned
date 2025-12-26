@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MonsterCompanion } from "@/components/monster-companion";
-import { CheckCircle2, Flame, Trophy, Sparkles } from "lucide-react";
+import { CheckCircle2, Flame, Trophy, Repeat } from "lucide-react";
 
 export default function Landing() {
   return (
@@ -70,10 +70,10 @@ export default function Landing() {
 
             <Card className="border-card-border">
               <CardContent className="pt-4 text-center">
-                <Sparkles className="h-8 w-8 mx-auto mb-2 text-purple-500" />
-                <h3 className="font-semibold text-sm">Unlock Monsters</h3>
+                <Repeat className="h-8 w-8 mx-auto mb-2 text-blue-500" />
+                <h3 className="font-semibold text-sm">Recurring Tasks</h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Discover new companions
+                  Auto-regenerate daily, weekly, or monthly
                 </p>
               </CardContent>
             </Card>
