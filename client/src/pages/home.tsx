@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useMonster } from "@/hooks/use-monster";
-import type { Task, InsertTask } from "@shared/schema";
+import type { Task, InsertTask, InsertRecurringTemplate } from "@shared/schema";
 
 type ViewMode = "today" | "all";
 
@@ -42,6 +42,28 @@ export default function Home() {
       toast({
         title: "Error",
         description: "Failed to add task. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const addTemplateMutation = useMutation({
+    mutationFn: async (template: Omit<InsertRecurringTemplate, "id" | "userId" | "createdAt" | "lastGeneratedAt">) => {
+      const res = await apiRequest("POST", "/api/recurring-templates", template);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/recurring-templates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Template created!",
+        description: "Your recurring task template is now active.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create template. Please try again.",
         variant: "destructive",
       });
     },
@@ -186,6 +208,13 @@ export default function Home() {
     [addTaskMutation]
   );
 
+  const handleAddTemplate = useCallback(
+    (template: Omit<InsertRecurringTemplate, "id" | "userId" | "createdAt" | "lastGeneratedAt">) => {
+      addTemplateMutation.mutate(template);
+    },
+    [addTemplateMutation]
+  );
+
   const handleCompleteTask = useCallback(
     (id: string) => {
       completeTaskMutation.mutate(id);
@@ -314,7 +343,8 @@ export default function Home() {
 
         <TaskInput
           onAddTask={handleAddTask}
-          isLoading={addTaskMutation.isPending}
+          onAddTemplate={handleAddTemplate}
+          isLoading={addTaskMutation.isPending || addTemplateMutation.isPending}
         />
 
         <CategoryFilter

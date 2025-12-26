@@ -63,10 +63,26 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid task data", details: parsed.error.issues });
       }
       
+      // Get the task before update to check if it's linked to a template
+      const existingTask = await storage.getTask(req.params.id, userId);
+      if (!existingTask) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      
       const task = await storage.updateTask(req.params.id, parsed.data, userId);
       if (!task) {
         return res.status(404).json({ error: "Task not found" });
       }
+      
+      // If task is being marked as completed and is linked to a template, auto-generate next instance
+      if (parsed.data.completed === true && existingTask.templateId && !existingTask.completed) {
+        const template = await storage.getRecurringTemplate(existingTask.templateId, userId);
+        if (template && template.active) {
+          // Generate the next task instance
+          await storage.generateTaskFromTemplate(template);
+        }
+      }
+      
       res.json(task);
     } catch (error) {
       console.error("Error updating task:", error);

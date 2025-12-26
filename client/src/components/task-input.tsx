@@ -6,11 +6,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format } from "date-fns";
-import type { InsertTask } from "@shared/schema";
+import { format, getDay } from "date-fns";
+import type { InsertTask, InsertRecurringTemplate } from "@shared/schema";
 
 interface TaskInputProps {
   onAddTask: (task: Omit<InsertTask, "id" | "createdAt" | "completedAt">) => void;
+  onAddTemplate?: (template: Omit<InsertRecurringTemplate, "id" | "userId" | "createdAt" | "lastGeneratedAt">) => void;
   isLoading?: boolean;
 }
 
@@ -28,7 +29,9 @@ const repeatPatterns = [
   { value: "monthly", label: "Monthly" },
 ];
 
-export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
+const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+export function TaskInput({ onAddTask, onAddTemplate, isLoading }: TaskInputProps) {
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>();
@@ -44,16 +47,33 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
 
     const isRecurring = repeatPattern !== "none";
     
-    onAddTask({
-      title: title.trim(),
-      completed: false,
-      category,
-      notes: notes.trim() || null,
-      dueDate: dueDate || null,
-      priority: "medium",
-      isRecurring,
-      recurringPattern: isRecurring ? repeatPattern : null,
-    });
+    if (isRecurring && onAddTemplate) {
+      // Create a template instead of a task for recurring items
+      const dayOfWeek = dueDate ? getDay(dueDate) : (repeatPattern === "weekly" ? 1 : null);
+      const dayOfMonth = dueDate ? dueDate.getDate() : (repeatPattern === "monthly" ? 1 : null);
+      
+      onAddTemplate({
+        title: title.trim(),
+        category,
+        notes: notes.trim() || null,
+        recurringPattern: repeatPattern,
+        dayOfWeek: repeatPattern === "weekly" ? dayOfWeek : null,
+        dayOfMonth: repeatPattern === "monthly" ? dayOfMonth : null,
+        active: true,
+      });
+    } else {
+      // Create a regular one-time task
+      onAddTask({
+        title: title.trim(),
+        completed: false,
+        category,
+        notes: notes.trim() || null,
+        dueDate: dueDate || null,
+        priority: "medium",
+        isRecurring: false,
+        recurringPattern: null,
+      });
+    }
 
     setTitle("");
     setNotes("");
@@ -65,6 +85,7 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
   };
 
   const selectedCategory = categories.find(c => c.value === category);
+  const isRecurring = repeatPattern !== "none";
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
@@ -102,7 +123,9 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
                   data-testid="button-due-date"
                 >
                   <Calendar className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{dueDate ? format(dueDate, "MMM d") : "Due Date"}</span>
+                  <span className="truncate">
+                    {dueDate ? format(dueDate, "MMM d") : (isRecurring ? "Start Date" : "Due Date")}
+                  </span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -189,6 +212,18 @@ export function TaskInput({ onAddTask, isLoading }: TaskInputProps) {
               className="min-h-[60px] text-sm resize-none"
               data-testid="input-task-notes"
             />
+          </div>
+        )}
+
+        {isExpanded && isRecurring && (
+          <div className="mt-2 px-1 text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
+            This will create a recurring template that generates tasks automatically.
+            {dueDate && repeatPattern === "weekly" && (
+              <span> Tasks will be due every <strong>{dayNames[getDay(dueDate)]}</strong>.</span>
+            )}
+            {dueDate && repeatPattern === "monthly" && (
+              <span> Tasks will be due on the <strong>{dueDate.getDate()}</strong> of each month.</span>
+            )}
           </div>
         )}
       </div>

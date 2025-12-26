@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Repeat, Calendar, Plus, Edit2, Trash2, Clock,
-  CalendarDays, CalendarClock, MoreVertical, CheckCircle2, Tag, FileText
+  CalendarDays, CalendarClock, MoreVertical, Tag, FileText, Power, PowerOff
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -35,9 +34,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { format, addDays, addWeeks, addMonths, getDay, nextDay, setDate, isAfter, startOfDay } from "date-fns";
-import { useState } from "react";
-import type { Task } from "@shared/schema";
+import { format, nextDay, setDate, addMonths, isAfter, startOfDay, getDay } from "date-fns";
+import { useState, useEffect } from "react";
+import type { RecurringTemplate } from "@shared/schema";
 
 const patternLabels: Record<string, string> = {
   daily: "Daily",
@@ -61,61 +60,37 @@ const categoryFilters = [
 
 const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-function getNextDueText(task: Task): string | null {
-  const pattern = task.recurringPattern || "daily";
+function getNextDueText(template: RecurringTemplate): string {
+  const pattern = template.recurringPattern;
   const today = startOfDay(new Date());
   
-  // If task has a due date, use it as the base for calculating next occurrence
-  const baseDate = task.dueDate ? startOfDay(new Date(task.dueDate)) : today;
-  
   if (pattern === "daily") {
-    // Next day
-    return `Next Due: Tomorrow`;
+    return "Every day";
   }
   
   if (pattern === "weekly") {
-    // If there's a due date, use that day of the week
-    const targetDayOfWeek = task.dueDate ? getDay(baseDate) : 1; // Default to Monday (1)
-    const todayDayOfWeek = getDay(today);
-    
-    let nextDate: Date;
-    if (task.completed || todayDayOfWeek > targetDayOfWeek || (todayDayOfWeek === targetDayOfWeek && task.completed)) {
-      // Task completed or day passed, next occurrence is next week's day
-      nextDate = nextDay(today, targetDayOfWeek as 0 | 1 | 2 | 3 | 4 | 5 | 6);
-    } else if (todayDayOfWeek === targetDayOfWeek) {
-      nextDate = today;
-    } else {
-      nextDate = nextDay(today, targetDayOfWeek as 0 | 1 | 2 | 3 | 4 | 5 | 6);
-    }
-    
-    return `Next Due: ${format(nextDate, "MMM d")}`;
+    const targetDayOfWeek = template.dayOfWeek ?? 1;
+    return `Every ${dayNames[targetDayOfWeek]}`;
   }
   
   if (pattern === "monthly") {
-    // If there's a due date, use that day of the month
-    const targetDayOfMonth = task.dueDate ? new Date(task.dueDate).getDate() : 1; // Default to 1st
-    
-    let nextDate = setDate(today, targetDayOfMonth);
-    
-    // If the target day has passed this month, or task is completed, go to next month
-    if (isAfter(today, nextDate) || task.completed) {
-      nextDate = setDate(addMonths(today, 1), targetDayOfMonth);
-    }
-    
-    return `Next Due: ${format(nextDate, "MMM d")}`;
+    const targetDayOfMonth = template.dayOfMonth ?? 1;
+    const suffix = targetDayOfMonth === 1 ? "st" : targetDayOfMonth === 2 ? "nd" : targetDayOfMonth === 3 ? "rd" : "th";
+    return `Every ${targetDayOfMonth}${suffix} of the month`;
   }
   
-  return null;
+  return "";
 }
 
-function RecurringTaskCard({ task, onEdit, onDelete }: { 
-  task: Task; 
-  onEdit: (task: Task) => void;
-  onDelete: (taskId: string) => void;
+function TemplateCard({ template, onEdit, onDelete, onToggleActive }: { 
+  template: RecurringTemplate; 
+  onEdit: (template: RecurringTemplate) => void;
+  onDelete: (templateId: string) => void;
+  onToggleActive: (template: RecurringTemplate) => void;
 }) {
-  const pattern = task.recurringPattern || "daily";
+  const pattern = template.recurringPattern;
   const PatternIcon = patternIcons[pattern] || Calendar;
-  const isCompleted = task.completed;
+  const isActive = template.active;
 
   return (
     <motion.div
@@ -124,54 +99,50 @@ function RecurringTaskCard({ task, onEdit, onDelete }: {
       exit={{ opacity: 0, y: -10 }}
       layout
     >
-      <Card className={`border-card-border hover-elevate ${isCompleted ? "opacity-70" : ""}`}>
+      <Card className={`border-card-border hover-elevate ${!isActive ? "opacity-60" : ""}`}>
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3 flex-1 min-w-0">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                isCompleted ? "bg-emerald-500/10" : "bg-primary/10"
+                isActive ? "bg-primary/10" : "bg-muted"
               }`}>
-                {isCompleted ? (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                ) : (
-                  <Repeat className="w-5 h-5 text-primary" />
-                )}
+                <Repeat className={`w-5 h-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 
-                  className={`font-medium truncate ${isCompleted ? "text-muted-foreground" : "text-foreground"}`}
-                  data-testid={`text-recurring-title-${task.id}`}
+                  className={`font-medium truncate ${!isActive ? "text-muted-foreground" : "text-foreground"}`}
+                  data-testid={`text-template-title-${template.id}`}
                 >
-                  {task.title}
+                  {template.title}
                 </h3>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <Badge variant="secondary" className="text-xs">
                     <PatternIcon className="w-3 h-3 mr-1" />
                     {patternLabels[pattern]}
                   </Badge>
-                  {isCompleted ? (
+                  {isActive ? (
                     <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">
-                      Done for now
+                      Active
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-                      Awaiting completion
+                    <Badge variant="outline" className="text-xs text-muted-foreground">
+                      Paused
                     </Badge>
                   )}
-                  {task.category && task.category !== "other" && (
+                  {template.category && template.category !== "other" && (
                     <Badge variant="outline" className="text-xs capitalize">
-                      {task.category}
+                      {template.category}
                     </Badge>
                   )}
                 </div>
-                {(() => {
-                  const nextDueText = getNextDueText(task);
-                  return nextDueText ? (
-                    <p className="text-xs text-muted-foreground mt-2" data-testid={`text-next-due-${task.id}`}>
-                      {nextDueText}
-                    </p>
-                  ) : null;
-                })()}
+                <p className="text-xs text-muted-foreground mt-2" data-testid={`text-schedule-${template.id}`}>
+                  {getNextDueText(template)}
+                </p>
+                {template.notes && (
+                  <p className="text-xs text-muted-foreground mt-1 truncate" data-testid={`text-notes-${template.id}`}>
+                    {template.notes}
+                  </p>
+                )}
               </div>
             </div>
             
@@ -180,26 +151,42 @@ function RecurringTaskCard({ task, onEdit, onDelete }: {
                 <Button 
                   size="icon" 
                   variant="ghost"
-                  data-testid={`button-recurring-menu-${task.id}`}
+                  data-testid={`button-template-menu-${template.id}`}
                 >
                   <MoreVertical className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem 
-                  onClick={() => onEdit(task)}
-                  data-testid={`button-edit-recurring-${task.id}`}
+                  onClick={() => onEdit(template)}
+                  data-testid={`button-edit-template-${template.id}`}
                 >
                   <Edit2 className="w-4 h-4 mr-2" />
-                  Edit Pattern
+                  Edit Template
                 </DropdownMenuItem>
                 <DropdownMenuItem 
-                  onClick={() => onDelete(task.id)}
+                  onClick={() => onToggleActive(template)}
+                  data-testid={`button-toggle-template-${template.id}`}
+                >
+                  {isActive ? (
+                    <>
+                      <PowerOff className="w-4 h-4 mr-2" />
+                      Pause Template
+                    </>
+                  ) : (
+                    <>
+                      <Power className="w-4 h-4 mr-2" />
+                      Resume Template
+                    </>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => onDelete(template.id)}
                   className="text-destructive"
-                  data-testid={`button-delete-recurring-${task.id}`}
+                  data-testid={`button-delete-template-${template.id}`}
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
-                  Stop Recurring
+                  Delete Template
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -210,7 +197,7 @@ function RecurringTaskCard({ task, onEdit, onDelete }: {
   );
 }
 
-function CreateRecurringDialog({ open, onOpenChange }: { 
+function CreateTemplateDialog({ open, onOpenChange }: { 
   open: boolean; 
   onOpenChange: (open: boolean) => void;
 }) {
@@ -218,36 +205,38 @@ function CreateRecurringDialog({ open, onOpenChange }: {
   const [title, setTitle] = useState("");
   const [pattern, setPattern] = useState<string>("daily");
   const [category, setCategory] = useState<string>("other");
-  const [dueDate, setDueDate] = useState<Date | undefined>();
+  const [dayOfWeek, setDayOfWeek] = useState<number>(1);
+  const [dayOfMonth, setDayOfMonth] = useState<number>(1);
   const [notes, setNotes] = useState("");
   const [showNotes, setShowNotes] = useState(false);
-  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const createMutation = useMutation({
-    mutationFn: async (data: { title: string; recurringPattern: string; category: string; dueDate: Date | null; notes: string | null }) => {
-      return apiRequest("POST", "/api/tasks", {
-        title: data.title,
-        isRecurring: true,
-        recurringPattern: data.recurringPattern,
-        category: data.category,
-        dueDate: data.dueDate,
-        notes: data.notes,
-      });
+    mutationFn: async (data: { 
+      title: string; 
+      recurringPattern: string; 
+      category: string; 
+      dayOfWeek: number | null;
+      dayOfMonth: number | null;
+      notes: string | null;
+    }) => {
+      return apiRequest("POST", "/api/recurring-templates", data);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/recurring-templates"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({ title: "Recurring task created!" });
+      toast({ title: "Template created! First task generated." });
       setTitle("");
       setPattern("daily");
       setCategory("other");
-      setDueDate(undefined);
+      setDayOfWeek(1);
+      setDayOfMonth(1);
       setNotes("");
       setShowNotes(false);
       onOpenChange(false);
     },
     onError: () => {
       toast({ 
-        title: "Failed to create task", 
+        title: "Failed to create template", 
         variant: "destructive" 
       });
     },
@@ -260,7 +249,8 @@ function CreateRecurringDialog({ open, onOpenChange }: {
       title, 
       recurringPattern: pattern, 
       category,
-      dueDate: dueDate || null,
+      dayOfWeek: pattern === "weekly" ? dayOfWeek : null,
+      dayOfMonth: pattern === "monthly" ? dayOfMonth : null,
       notes: notes.trim() || null,
     });
   };
@@ -282,7 +272,7 @@ function CreateRecurringDialog({ open, onOpenChange }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create Recurring Task</DialogTitle>
+          <DialogTitle>Create Recurring Template</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -292,39 +282,13 @@ function CreateRecurringDialog({ open, onOpenChange }: {
               placeholder="e.g., Take vitamins"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              data-testid="input-recurring-title"
+              data-testid="input-template-title"
             />
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
-            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 gap-1 px-2 text-xs font-normal"
-                  data-testid="button-recurring-due-date"
-                >
-                  <Calendar className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{dueDate ? format(dueDate, "MMM d") : "Due Date"}</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CalendarComponent
-                  mode="single"
-                  selected={dueDate}
-                  onSelect={(date) => {
-                    setDueDate(date);
-                    setCalendarOpen(false);
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="h-7 w-auto min-w-0 gap-1 px-2 text-xs" data-testid="select-recurring-category">
+              <SelectTrigger className="h-7 w-auto min-w-0 gap-1 px-2 text-xs" data-testid="select-template-category">
                 <Tag className="h-3 w-3 shrink-0" />
                 <span>Category</span>
               </SelectTrigger>
@@ -341,7 +305,7 @@ function CreateRecurringDialog({ open, onOpenChange }: {
             </Select>
 
             <Select value={pattern} onValueChange={setPattern}>
-              <SelectTrigger className="h-7 w-auto min-w-0 gap-1 px-2 text-xs" data-testid="select-recurring-pattern">
+              <SelectTrigger className="h-7 w-auto min-w-0 gap-1 px-2 text-xs" data-testid="select-template-pattern">
                 <Repeat className="h-3 w-3 shrink-0" />
                 <span>Repeat</span>
               </SelectTrigger>
@@ -360,26 +324,63 @@ function CreateRecurringDialog({ open, onOpenChange }: {
               size="sm"
               onClick={() => setShowNotes(!showNotes)}
               className="h-7 gap-1 px-2 text-xs font-normal"
-              data-testid="button-recurring-notes"
+              data-testid="button-template-notes"
             >
               <FileText className="h-3 w-3 shrink-0" />
-              <span>Task Notes</span>
+              <span>Notes</span>
             </Button>
           </div>
 
+          {pattern === "weekly" && (
+            <div className="space-y-2">
+              <Label>Day of Week</Label>
+              <Select value={dayOfWeek.toString()} onValueChange={(v) => setDayOfWeek(parseInt(v))}>
+                <SelectTrigger data-testid="select-day-of-week">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {dayNames.map((day, idx) => (
+                    <SelectItem key={idx} value={idx.toString()}>
+                      {day}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {pattern === "monthly" && (
+            <div className="space-y-2">
+              <Label>Day of Month</Label>
+              <Select value={dayOfMonth.toString()} onValueChange={(v) => setDayOfMonth(parseInt(v))}>
+                <SelectTrigger data-testid="select-day-of-month">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+                    <SelectItem key={day} value={day.toString()}>
+                      {day}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {showNotes && (
             <Textarea
-              placeholder="Add notes for this recurring task..."
+              placeholder="Add notes for this template..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="min-h-[60px] text-sm resize-none"
-              data-testid="input-recurring-notes"
+              data-testid="input-template-notes"
             />
           )}
 
           <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
             Selected: <span className="font-medium capitalize">{category}</span> task, repeating <span className="font-medium">{pattern}</span>
-            {dueDate && <>, starting <span className="font-medium">{format(dueDate, "MMM d")}</span></>}
+            {pattern === "weekly" && <>, on <span className="font-medium">{dayNames[dayOfWeek]}</span></>}
+            {pattern === "monthly" && <>, on the <span className="font-medium">{dayOfMonth}</span></>}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
@@ -393,7 +394,7 @@ function CreateRecurringDialog({ open, onOpenChange }: {
             <Button 
               type="submit" 
               disabled={!title.trim() || createMutation.isPending}
-              data-testid="button-create-recurring"
+              data-testid="button-create-template"
             >
               {createMutation.isPending ? "Creating..." : "Create"}
             </Button>
@@ -404,27 +405,50 @@ function CreateRecurringDialog({ open, onOpenChange }: {
   );
 }
 
-function EditPatternDialog({ 
-  task, 
+function EditTemplateDialog({ 
+  template, 
   open, 
   onOpenChange 
 }: { 
-  task: Task | null; 
+  template: RecurringTemplate | null; 
   open: boolean; 
   onOpenChange: (open: boolean) => void;
 }) {
   const { toast } = useToast();
-  const [pattern, setPattern] = useState<string>(task?.recurringPattern || "daily");
+  const [title, setTitle] = useState("");
+  const [pattern, setPattern] = useState<string>("daily");
+  const [category, setCategory] = useState<string>("other");
+  const [dayOfWeek, setDayOfWeek] = useState<number>(1);
+  const [dayOfMonth, setDayOfMonth] = useState<number>(1);
+  const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    if (template) {
+      setTitle(template.title);
+      setPattern(template.recurringPattern);
+      setCategory(template.category || "other");
+      setDayOfWeek(template.dayOfWeek ?? 1);
+      setDayOfMonth(template.dayOfMonth ?? 1);
+      setNotes(template.notes || "");
+    }
+  }, [template]);
 
   const updateMutation = useMutation({
-    mutationFn: async (data: { taskId: string; recurringPattern: string }) => {
-      return apiRequest("PATCH", `/api/tasks/${data.taskId}`, {
-        recurringPattern: data.recurringPattern,
-      });
+    mutationFn: async (data: { 
+      templateId: string; 
+      title?: string;
+      recurringPattern?: string; 
+      category?: string;
+      dayOfWeek?: number | null;
+      dayOfMonth?: number | null;
+      notes?: string | null;
+    }) => {
+      const { templateId, ...updateData } = data;
+      return apiRequest("PATCH", `/api/recurring-templates/${templateId}`, updateData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({ title: "Pattern updated!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/recurring-templates"] });
+      toast({ title: "Template updated!" });
       onOpenChange(false);
     },
     onError: () => {
@@ -437,21 +461,61 @@ function EditPatternDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!task) return;
-    updateMutation.mutate({ taskId: task.id, recurringPattern: pattern });
+    if (!template || !title.trim()) return;
+    updateMutation.mutate({ 
+      templateId: template.id, 
+      title,
+      recurringPattern: pattern,
+      category,
+      dayOfWeek: pattern === "weekly" ? dayOfWeek : null,
+      dayOfMonth: pattern === "monthly" ? dayOfMonth : null,
+      notes: notes.trim() || null,
+    });
   };
 
-  if (!task) return null;
+  if (!template) return null;
+
+  const categories = [
+    { value: "personal", label: "Personal", color: "bg-blue-500" },
+    { value: "work", label: "Work", color: "bg-purple-500" },
+    { value: "money", label: "Money", color: "bg-emerald-500" },
+    { value: "other", label: "Other", color: "bg-gray-500" },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit Recurring Pattern</DialogTitle>
+          <DialogTitle>Edit Template</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <p className="text-sm text-muted-foreground mb-2">Task: {task.title}</p>
+          <div className="space-y-2">
+            <Label htmlFor="edit-title">Task Name</Label>
+            <Input
+              id="edit-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              data-testid="input-edit-title"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger data-testid="select-edit-category">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.value} value={cat.value}>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${cat.color}`} />
+                      {cat.label}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -461,11 +525,58 @@ function EditPatternDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="daily">Daily (every day)</SelectItem>
-                <SelectItem value="weekly">Weekly (every Monday)</SelectItem>
-                <SelectItem value="monthly">Monthly (1st of month)</SelectItem>
+                <SelectItem value="daily">Daily</SelectItem>
+                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {pattern === "weekly" && (
+            <div className="space-y-2">
+              <Label>Day of Week</Label>
+              <Select value={dayOfWeek.toString()} onValueChange={(v) => setDayOfWeek(parseInt(v))}>
+                <SelectTrigger data-testid="select-edit-day-of-week">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {dayNames.map((day, idx) => (
+                    <SelectItem key={idx} value={idx.toString()}>
+                      {day}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {pattern === "monthly" && (
+            <div className="space-y-2">
+              <Label>Day of Month</Label>
+              <Select value={dayOfMonth.toString()} onValueChange={(v) => setDayOfMonth(parseInt(v))}>
+                <SelectTrigger data-testid="select-edit-day-of-month">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+                    <SelectItem key={day} value={day.toString()}>
+                      {day}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label>Notes (optional)</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="min-h-[60px] text-sm resize-none"
+              placeholder="Add notes..."
+              data-testid="input-edit-notes"
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
@@ -478,8 +589,8 @@ function EditPatternDialog({
             </Button>
             <Button 
               type="submit" 
-              disabled={updateMutation.isPending}
-              data-testid="button-save-pattern"
+              disabled={!title.trim() || updateMutation.isPending}
+              data-testid="button-save-template"
             >
               {updateMutation.isPending ? "Saving..." : "Save"}
             </Button>
@@ -493,69 +604,44 @@ function EditPatternDialog({
 export default function Recurring() {
   const { toast } = useToast();
   const [createOpen, setCreateOpen] = useState(false);
-  const [editTask, setEditTask] = useState<Task | null>(null);
+  const [editTemplate, setEditTemplate] = useState<RecurringTemplate | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
-  const { data: tasks = [], isLoading } = useQuery<Task[]>({
-    queryKey: ["/api/tasks"],
+  const { data: templates = [], isLoading } = useQuery<RecurringTemplate[]>({
+    queryKey: ["/api/recurring-templates"],
   });
 
-  // Group recurring tasks by title + pattern to show each only once
-  // For each group, show the active (non-completed) one, or the most recent completed one
-  // Then sort by due date ascending (earliest first)
-  const recurringTasks = (() => {
-    const allRecurring = tasks.filter(t => t.isRecurring);
-    const grouped = new Map<string, Task[]>();
-    
-    // Group by title + pattern
-    allRecurring.forEach(task => {
-      const key = `${task.title.toLowerCase().trim()}_${task.recurringPattern || 'daily'}`;
-      const existing = grouped.get(key) || [];
-      existing.push(task);
-      grouped.set(key, existing);
-    });
-    
-    // For each group, pick the best representative task
-    const uniqueTasks: Task[] = [];
-    grouped.forEach(taskGroup => {
-      // Prefer non-completed task (the active one)
-      const activeTask = taskGroup.find(t => !t.completed);
-      if (activeTask) {
-        uniqueTasks.push(activeTask);
-      } else {
-        // All completed - pick the most recently completed one
-        const sorted = taskGroup.sort((a, b) => {
-          const aDate = a.completedAt ? new Date(a.completedAt).getTime() : 0;
-          const bDate = b.completedAt ? new Date(b.completedAt).getTime() : 0;
-          return bDate - aDate;
-        });
-        if (sorted[0]) uniqueTasks.push(sorted[0]);
-      }
-    });
-    
-    // Sort by due date ascending (earliest first)
-    // Tasks without due dates go to the end
-    const sorted = uniqueTasks.sort((a, b) => {
-      const aDate = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-      const bDate = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-      return aDate - bDate;
-    });
-    
-    // Apply category filter
-    if (categoryFilter === "all") {
-      return sorted;
-    }
-    return sorted.filter(t => (t.category || "other") === categoryFilter);
-  })();
+  const filteredTemplates = categoryFilter === "all" 
+    ? templates 
+    : templates.filter(t => (t.category || "other") === categoryFilter);
 
-  const stopRecurringMutation = useMutation({
-    mutationFn: async (taskId: string) => {
-      return apiRequest("PATCH", `/api/tasks/${taskId}`, { isRecurring: false });
+  const deleteMutation = useMutation({
+    mutationFn: async (templateId: string) => {
+      return apiRequest("DELETE", `/api/recurring-templates/${templateId}`);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/recurring-templates"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({ title: "Task will no longer repeat" });
+      toast({ title: "Template deleted" });
+    },
+    onError: () => {
+      toast({ 
+        title: "Failed to delete", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: async (template: RecurringTemplate) => {
+      return apiRequest("PATCH", `/api/recurring-templates/${template.id}`, {
+        active: !template.active,
+      });
+    },
+    onSuccess: (_, template) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/recurring-templates"] });
+      toast({ title: template.active ? "Template paused" : "Template resumed" });
     },
     onError: () => {
       toast({ 
@@ -565,13 +651,17 @@ export default function Recurring() {
     },
   });
 
-  const handleEdit = (task: Task) => {
-    setEditTask(task);
+  const handleEdit = (template: RecurringTemplate) => {
+    setEditTemplate(template);
     setEditOpen(true);
   };
 
-  const handleDelete = (taskId: string) => {
-    stopRecurringMutation.mutate(taskId);
+  const handleDelete = (templateId: string) => {
+    deleteMutation.mutate(templateId);
+  };
+
+  const handleToggleActive = (template: RecurringTemplate) => {
+    toggleActiveMutation.mutate(template);
   };
 
   if (isLoading) {
@@ -597,10 +687,10 @@ export default function Recurring() {
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
         <header className="text-center">
           <h1 className="text-2xl font-semibold text-foreground" data-testid="text-page-title">
-            Recurring Tasks
+            Recurring Templates
           </h1>
           <p className="text-sm text-muted-foreground">
-            Manage your repeating tasks
+            Manage your repeating task templates
           </p>
         </header>
 
@@ -608,10 +698,10 @@ export default function Recurring() {
           <Button 
             onClick={() => setCreateOpen(true)}
             className="gap-2"
-            data-testid="button-add-recurring"
+            data-testid="button-add-template"
           >
             <Plus className="w-4 h-4" />
-            Add Recurring Task
+            Create Template
           </Button>
         </div>
 
@@ -633,73 +723,45 @@ export default function Recurring() {
           ))}
         </div>
 
-        {recurringTasks.length === 0 ? (
+        {filteredTemplates.length === 0 ? (
           <Card className="border-card-border">
             <CardContent className="py-12 text-center">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
                 <Repeat className="w-8 h-8 text-muted-foreground" />
               </div>
               <h3 className="font-medium text-foreground mb-1">
-                {categoryFilter === "all" ? "No recurring tasks" : `No ${categoryFilter} recurring tasks`}
+                {categoryFilter === "all" ? "No templates yet" : `No ${categoryFilter} templates`}
               </h3>
-              <p className="text-sm text-muted-foreground">
-                {categoryFilter === "all" 
-                  ? "Create a recurring task to get started with automatic repeats"
-                  : "Try selecting a different category filter"}
+              <p className="text-sm text-muted-foreground mb-4">
+                Create a template to automatically generate recurring tasks
               </p>
+              {categoryFilter === "all" && (
+                <Button onClick={() => setCreateOpen(true)} variant="outline" className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Create your first template
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-medium text-muted-foreground">
-                Active Recurring Tasks
-              </h2>
-              <Badge variant="secondary" data-testid="text-recurring-count">
-                {recurringTasks.length}
-              </Badge>
-            </div>
-            
             <AnimatePresence mode="popLayout">
-              {recurringTasks.map((task) => (
-                <RecurringTaskCard 
-                  key={task.id} 
-                  task={task} 
+              {filteredTemplates.map((template) => (
+                <TemplateCard
+                  key={template.id}
+                  template={template}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
+                  onToggleActive={handleToggleActive}
                 />
               ))}
             </AnimatePresence>
           </div>
         )}
 
-        <Card className="border-card-border bg-muted/30">
-          <CardContent className="py-4">
-            <h3 className="font-medium text-foreground mb-2">How it works</h3>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li className="flex items-start gap-2">
-                <Clock className="w-4 h-4 mt-0.5 shrink-0" />
-                <span><strong>Daily:</strong> Repeats the next day</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CalendarDays className="w-4 h-4 mt-0.5 shrink-0" />
-                <span><strong>Weekly:</strong> Repeats every Monday</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CalendarClock className="w-4 h-4 mt-0.5 shrink-0" />
-                <span><strong>Monthly:</strong> Repeats on the 1st</span>
-              </li>
-            </ul>
-          </CardContent>
-        </Card>
-
-        <CreateRecurringDialog 
-          open={createOpen} 
-          onOpenChange={setCreateOpen} 
-        />
-
-        <EditPatternDialog 
-          task={editTask} 
+        <CreateTemplateDialog open={createOpen} onOpenChange={setCreateOpen} />
+        <EditTemplateDialog 
+          template={editTemplate} 
           open={editOpen} 
           onOpenChange={setEditOpen} 
         />
