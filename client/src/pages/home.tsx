@@ -202,20 +202,33 @@ export default function Home() {
       const res = await apiRequest("PATCH", `/api/tasks/${id}`, { completed: false, completedAt: null });
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      toast({
-        title: "Restored",
-        description: "Task has been restored to your list.",
-      });
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
+      const previousTasks = queryClient.getQueryData<Task[]>(["/api/tasks"]);
+      
+      if (previousTasks && previousTasks.length > 0) {
+        queryClient.setQueryData<Task[]>(["/api/tasks"], (old) =>
+          old?.map((task) =>
+            task.id === id ? { ...task, completed: false, completedAt: null } : task
+          )
+        );
+      }
+      
+      return { previousTasks };
     },
-    onError: () => {
+    onError: (_err, _id, context) => {
+      if (context?.previousTasks) {
+        queryClient.setQueryData(["/api/tasks"], context.previousTasks);
+      }
       toast({
         title: "Error",
         description: "Failed to restore task. Please try again.",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
     },
   });
 
