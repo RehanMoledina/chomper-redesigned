@@ -127,6 +127,21 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
 
+// Recurring task templates - these stay in the Recurring tab permanently
+export const recurringTemplates = pgTable("recurring_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  title: text("title").notNull(),
+  category: text("category").default("personal"),
+  notes: text("notes"),
+  recurringPattern: text("recurring_pattern").notNull().default("daily"), // daily, weekly, monthly
+  dayOfWeek: integer("day_of_week"), // 0-6 for weekly (0=Sunday)
+  dayOfMonth: integer("day_of_month"), // 1-31 for monthly
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  lastGeneratedAt: timestamp("last_generated_at"),
+});
+
 export const tasks = pgTable("tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id"),
@@ -142,6 +157,7 @@ export const tasks = pgTable("tasks", {
   recurringPattern: text("recurring_pattern"),
   nextDueDate: timestamp("next_due_date"),
   scheduledFor: timestamp("scheduled_for"),
+  templateId: varchar("template_id"), // Links to recurring_templates.id if generated from a template
 });
 
 export const monsterStats = pgTable("monster_stats", {
@@ -204,6 +220,18 @@ export const updateMonsterStatsSchema = createInsertSchema(monsterStats).omit({
 export const insertAchievementSchema = createInsertSchema(achievements);
 export const updateAchievementSchema = createInsertSchema(achievements).partial();
 
+export const insertRecurringTemplateSchema = createInsertSchema(recurringTemplates).omit({
+  id: true,
+  createdAt: true,
+  lastGeneratedAt: true,
+});
+
+export const updateRecurringTemplateSchema = createInsertSchema(recurringTemplates).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+}).partial();
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
@@ -219,3 +247,6 @@ export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema
 export type DeviceToken = typeof deviceTokens.$inferSelect;
 export type InsertDeviceToken = z.infer<typeof insertDeviceTokenSchema>;
 export type UpdateNotificationPrefs = z.infer<typeof updateNotificationPrefsSchema>;
+export type RecurringTemplate = typeof recurringTemplates.$inferSelect;
+export type InsertRecurringTemplate = z.infer<typeof insertRecurringTemplateSchema>;
+export type UpdateRecurringTemplate = z.infer<typeof updateRecurringTemplateSchema>;
