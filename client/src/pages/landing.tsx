@@ -26,10 +26,10 @@ export default function Landing() {
 
           <div className="space-y-4">
             <h2 className="text-3xl font-bold text-foreground">
-              Make Productivity Fun
+              Organize Your Life
             </h2>
             <p className="text-lg text-muted-foreground">
-              Meet your new productivity companion! Chomper turns your to-do list into a delightful game where completing tasks keeps your monster happy and fed.
+              Never miss a bill, rent payment, or important deadline again. Set up recurring tasks that automatically reappear when you need them - daily, weekly, or monthly. Plus, your monster companion celebrates every task you complete!
             </p>
           </div>
 
