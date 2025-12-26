@@ -153,7 +153,7 @@ export default function Home() {
     },
     onSettled: () => {
       setCompletingTaskId(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      // Only invalidate stats, not tasks - we already have the correct state from optimistic update
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
     },
   });
@@ -227,7 +227,7 @@ export default function Home() {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      // Only invalidate stats, not tasks - we already have the correct state from optimistic update
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
     },
   });
