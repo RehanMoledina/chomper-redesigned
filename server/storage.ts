@@ -6,10 +6,11 @@ import {
   type PasswordResetToken, type EmailVerificationToken,
   type PushSubscription, type InsertPushSubscription, type UpdateNotificationPrefs,
   type DeviceToken, type InsertDeviceToken,
-  users, tasks, monsterStats, achievements, passwordResetTokens, emailVerificationTokens, pushSubscriptions, deviceTokens 
+  type RecurringTemplate, type InsertRecurringTemplate, type UpdateRecurringTemplate,
+  users, tasks, monsterStats, achievements, passwordResetTokens, emailVerificationTokens, pushSubscriptions, deviceTokens, recurringTemplates 
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, lt, isNotNull } from "drizzle-orm";
+import { eq, desc, and, lt, isNotNull, isNull } from "drizzle-orm";
 import crypto from "crypto";
 
 export interface IStorage {
@@ -56,6 +57,15 @@ export interface IStorage {
   getDeviceTokens(userId: string): Promise<DeviceToken[]>;
   deleteDeviceToken(token: string): Promise<boolean>;
   getAllDeviceTokensForNotifications(): Promise<{ userId: string; token: string; platform: string }[]>;
+  
+  // Recurring templates
+  getRecurringTemplates(userId: string): Promise<RecurringTemplate[]>;
+  getRecurringTemplate(id: string, userId: string): Promise<RecurringTemplate | undefined>;
+  createRecurringTemplate(template: InsertRecurringTemplate): Promise<RecurringTemplate>;
+  updateRecurringTemplate(id: string, template: UpdateRecurringTemplate, userId: string): Promise<RecurringTemplate | undefined>;
+  deleteRecurringTemplate(id: string, userId: string): Promise<boolean>;
+  generateTaskFromTemplate(template: RecurringTemplate): Promise<Task>;
+  getActiveTaskForTemplate(templateId: string, userId: string): Promise<Task | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -281,9 +291,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteCompletedTasks(userId: string): Promise<number> {
+    // Only delete completed tasks that are NOT linked to a recurring template
+    // Tasks linked to templates should only be deleted when the template is deleted
     const result = await db
       .delete(tasks)
-      .where(and(eq(tasks.completed, true), eq(tasks.userId, userId)))
+      .where(and(
+        eq(tasks.completed, true), 
+        eq(tasks.userId, userId),
+        isNull(tasks.templateId) // Don't delete tasks linked to templates
+      ))
       .returning();
     return result.length;
   }
@@ -574,6 +590,113 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.notificationsEnabled, true));
     
     return results;
+  }
+
+  // Recurring Templates
+  async getRecurringTemplates(userId: string): Promise<RecurringTemplate[]> {
+    return await db
+      .select()
+      .from(recurringTemplates)
+      .where(eq(recurringTemplates.userId, userId))
+      .orderBy(desc(recurringTemplates.createdAt));
+  }
+
+  async getRecurringTemplate(id: string, userId: string): Promise<RecurringTemplate | undefined> {
+    const [template] = await db
+      .select()
+      .from(recurringTemplates)
+      .where(and(eq(recurringTemplates.id, id), eq(recurringTemplates.userId, userId)));
+    return template || undefined;
+  }
+
+  async createRecurringTemplate(template: InsertRecurringTemplate): Promise<RecurringTemplate> {
+    const [created] = await db
+      .insert(recurringTemplates)
+      .values(template)
+      .returning();
+    return created;
+  }
+
+  async updateRecurringTemplate(id: string, template: UpdateRecurringTemplate, userId: string): Promise<RecurringTemplate | undefined> {
+    const [updated] = await db
+      .update(recurringTemplates)
+      .set(template)
+      .where(and(eq(recurringTemplates.id, id), eq(recurringTemplates.userId, userId)))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteRecurringTemplate(id: string, userId: string): Promise<boolean> {
+    // Also delete any tasks linked to this template
+    await db
+      .delete(tasks)
+      .where(and(eq(tasks.templateId, id), eq(tasks.userId, userId)));
+    
+    const result = await db
+      .delete(recurringTemplates)
+      .where(and(eq(recurringTemplates.id, id), eq(recurringTemplates.userId, userId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async generateTaskFromTemplate(template: RecurringTemplate): Promise<Task> {
+    // Calculate due date based on pattern
+    const now = new Date();
+    let dueDate: Date | null = null;
+    
+    if (template.recurringPattern === "daily") {
+      dueDate = new Date(now);
+      dueDate.setHours(23, 59, 59, 999);
+    } else if (template.recurringPattern === "weekly") {
+      // Set to the specified day of week
+      const targetDay = template.dayOfWeek ?? 1; // Default to Monday (1)
+      const currentDay = now.getDay();
+      const daysUntilTarget = (targetDay - currentDay + 7) % 7;
+      dueDate = new Date(now);
+      dueDate.setDate(now.getDate() + (daysUntilTarget === 0 ? 0 : daysUntilTarget));
+      dueDate.setHours(23, 59, 59, 999);
+    } else if (template.recurringPattern === "monthly") {
+      // Set to the specified day of month
+      const targetDayOfMonth = template.dayOfMonth ?? 1;
+      dueDate = new Date(now.getFullYear(), now.getMonth(), targetDayOfMonth, 23, 59, 59, 999);
+      if (dueDate < now) {
+        dueDate = new Date(now.getFullYear(), now.getMonth() + 1, targetDayOfMonth, 23, 59, 59, 999);
+      }
+    }
+
+    const [task] = await db
+      .insert(tasks)
+      .values({
+        userId: template.userId,
+        title: template.title,
+        category: template.category,
+        notes: template.notes,
+        dueDate,
+        isRecurring: true,
+        recurringPattern: template.recurringPattern,
+        templateId: template.id,
+      })
+      .returning();
+
+    // Update template's lastGeneratedAt
+    await db
+      .update(recurringTemplates)
+      .set({ lastGeneratedAt: new Date() })
+      .where(eq(recurringTemplates.id, template.id));
+
+    return task;
+  }
+
+  async getActiveTaskForTemplate(templateId: string, userId: string): Promise<Task | undefined> {
+    const [task] = await db
+      .select()
+      .from(tasks)
+      .where(and(
+        eq(tasks.templateId, templateId),
+        eq(tasks.userId, userId),
+        eq(tasks.completed, false)
+      ));
+    return task || undefined;
   }
 }
 

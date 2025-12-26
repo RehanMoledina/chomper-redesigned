@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertTaskSchema, updateTaskSchema, updateMonsterStatsSchema, updateNotificationPrefsSchema, insertDeviceTokenSchema } from "@shared/schema";
+import { insertTaskSchema, updateTaskSchema, updateMonsterStatsSchema, updateNotificationPrefsSchema, insertDeviceTokenSchema, insertRecurringTemplateSchema, updateRecurringTemplateSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./auth";
 import { z } from "zod";
 
@@ -96,6 +96,109 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting task:", error);
       res.status(500).json({ error: "Failed to delete task" });
+    }
+  });
+
+  // Recurring Templates routes - protected
+  app.get("/api/recurring-templates", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const templates = await storage.getRecurringTemplates(userId);
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching recurring templates:", error);
+      res.status(500).json({ error: "Failed to fetch recurring templates" });
+    }
+  });
+
+  app.get("/api/recurring-templates/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const template = await storage.getRecurringTemplate(req.params.id, userId);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Error fetching recurring template:", error);
+      res.status(500).json({ error: "Failed to fetch recurring template" });
+    }
+  });
+
+  app.post("/api/recurring-templates", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const parsed = insertRecurringTemplateSchema.safeParse({ ...req.body, userId });
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid template data", details: parsed.error.issues });
+      }
+      
+      // Create the template
+      const template = await storage.createRecurringTemplate(parsed.data);
+      
+      // Generate the first task instance from this template
+      const task = await storage.generateTaskFromTemplate(template);
+      
+      res.status(201).json({ template, task });
+    } catch (error) {
+      console.error("Error creating recurring template:", error);
+      res.status(500).json({ error: "Failed to create recurring template" });
+    }
+  });
+
+  app.patch("/api/recurring-templates/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const parsed = updateRecurringTemplateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid template data", details: parsed.error.issues });
+      }
+      
+      const template = await storage.updateRecurringTemplate(req.params.id, parsed.data, userId);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Error updating recurring template:", error);
+      res.status(500).json({ error: "Failed to update recurring template" });
+    }
+  });
+
+  app.delete("/api/recurring-templates/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const deleted = await storage.deleteRecurringTemplate(req.params.id, userId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting recurring template:", error);
+      res.status(500).json({ error: "Failed to delete recurring template" });
+    }
+  });
+
+  // Generate next task instance when a template's task is completed
+  app.post("/api/recurring-templates/:id/generate", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const template = await storage.getRecurringTemplate(req.params.id, userId);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      // Check if there's already an active (incomplete) task for this template
+      const existingTask = await storage.getActiveTaskForTemplate(template.id, userId);
+      if (existingTask) {
+        return res.status(400).json({ error: "Active task already exists for this template" });
+      }
+      
+      const task = await storage.generateTaskFromTemplate(template);
+      res.status(201).json(task);
+    } catch (error) {
+      console.error("Error generating task from template:", error);
+      res.status(500).json({ error: "Failed to generate task" });
     }
   });
 
