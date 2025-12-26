@@ -765,6 +765,18 @@ export default function Recurring() {
           open={editOpen} 
           onOpenChange={setEditOpen} 
         />
+
+        <div className="mt-8 p-4 rounded-lg bg-muted/50 border border-border">
+          <h4 className="font-medium text-sm text-foreground mb-2">How recurring templates work</h4>
+          <ul className="text-xs text-muted-foreground space-y-1.5">
+            <li><span className="font-medium">Daily:</span> A new task appears in your Tasks tab every day at midnight.</li>
+            <li><span className="font-medium">Weekly:</span> A new task appears every Monday at midnight.</li>
+            <li><span className="font-medium">Monthly:</span> A new task appears on the 1st of each month at midnight.</li>
+          </ul>
+          <p className="text-xs text-muted-foreground mt-2">
+            Complete tasks in the Tasks tab. Once completed, the next instance will appear on schedule.
+          </p>
+        </div>
       </div>
     </div>
   );
