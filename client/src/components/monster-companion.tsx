@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 type MonsterState = "idle" | "hungry" | "eating" | "happy" | "celebrating";
@@ -105,7 +105,7 @@ export const monsterInfo: Record<MonsterType, { name: string; description: strin
   legend: { name: "Legend", description: "A legendary golden champion", requirement: "Maintain a 30-day streak", type: "streak", value: 30 },
 };
 
-export function MonsterCompanion({
+export const MonsterCompanion = memo(function MonsterCompanion({
   state = "idle",
   tasksCompleted = 0,
   size = "medium",
@@ -295,4 +295,4 @@ export function MonsterCompanion({
       )}
     </div>
   );
-}
+});

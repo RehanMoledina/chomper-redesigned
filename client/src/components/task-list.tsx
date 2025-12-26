@@ -133,7 +133,7 @@ export function TaskList({ tasks, onComplete, onUncomplete, onDelete, onEdit, on
               )}
             </div>
             <div className="space-y-2">
-              <AnimatePresence mode="popLayout">
+              <AnimatePresence mode="sync">
                 {group.tasks.map((task) => (
                   <TaskCard
                     key={task.id}
@@ -175,7 +175,7 @@ export function TaskList({ tasks, onComplete, onUncomplete, onDelete, onEdit, on
             )}
           </div>
           <div className="space-y-2">
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence mode="sync">
               {group.tasks.map((task) => (
                 <TaskCard
                   key={task.id}

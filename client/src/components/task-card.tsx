@@ -1,4 +1,4 @@
-import { useState, forwardRef } from "react";
+import { useState, forwardRef, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trash2, Calendar, Repeat, Pencil, FileText } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,7 +22,7 @@ const categoryColors: Record<string, string> = {
   other: "bg-gray-500",
 };
 
-export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCard({ task, onComplete, onUncomplete, onDelete, onEdit, isCompleting }, ref) {
+export const TaskCard = memo(forwardRef<HTMLDivElement, TaskCardProps>(function TaskCard({ task, onComplete, onUncomplete, onDelete, onEdit, isCompleting }, ref) {
   const [showActions, setShowActions] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -173,4 +173,4 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
         </AnimatePresence>
       </motion.div>
   );
-});
+}));
