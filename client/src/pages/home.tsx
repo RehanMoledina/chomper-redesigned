@@ -82,41 +82,38 @@ export default function Home() {
       await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
       
       // Snapshot the previous value
-      const previousTasks = queryClient.getQueryData<Task[]>(["/api/tasks"]);
+      const previousTasks = queryClient.getQueryData<Task[]>(["/api/tasks"]) ?? [];
       
-      // Only proceed with optimistic update if we have cached data
-      if (previousTasks && previousTasks.length > 0) {
-        // Optimistically update the cache
-        queryClient.setQueryData<Task[]>(["/api/tasks"], (old) =>
-          old?.map((task) =>
-            task.id === id ? { ...task, completed: true, completedAt: new Date() } : task
-          )
-        );
+      // Optimistically update the cache
+      queryClient.setQueryData<Task[]>(["/api/tasks"], (old) =>
+        (old ?? []).map((task) =>
+          task.id === id ? { ...task, completed: true, completedAt: new Date() } : task
+        )
+      );
+      
+      // Check if all tasks for today are now completed (after this optimistic update)
+      const today = startOfDay(new Date());
+      const remainingTodayTasks = previousTasks.filter((task) => {
+        if (task.id === id) return false; // Exclude the task being completed
+        if (task.completed) return false; // Already completed
         
-        // Check if all tasks for today are now completed (after this optimistic update)
-        const today = startOfDay(new Date());
-        const remainingTodayTasks = previousTasks.filter((task) => {
-          if (task.id === id) return false; // Exclude the task being completed
-          if (task.completed) return false; // Already completed
-          
-          if (!task.dueDate) return true;
-          const dueDate = new Date(task.dueDate);
-          if (!isValid(dueDate)) return true;
-          return isBefore(dueDate, today) || isToday(dueDate);
-        });
+        if (!task.dueDate) return true;
+        const dueDate = new Date(task.dueDate);
+        if (!isValid(dueDate)) return true;
+        return isBefore(dueDate, today) || isToday(dueDate);
+      });
 
-        // Only celebrate if all today's tasks are now complete
-        if (remainingTodayTasks.length === 0) {
-          const messages = [
-            "ALL DONE! NOM NOM!",
-            "Day complete! Delicious!",
-            "CHOMPED everything!",
-            "Perfect day!",
-            "All tasks devoured!",
-          ];
-          setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)]);
-          setShowCelebration(true);
-        }
+      // Only celebrate if all today's tasks are now complete
+      if (remainingTodayTasks.length === 0) {
+        const messages = [
+          "ALL DONE! NOM NOM!",
+          "Day complete! Delicious!",
+          "CHOMPED everything!",
+          "Perfect day!",
+          "All tasks devoured!",
+        ];
+        setCelebrationMessage(messages[Math.floor(Math.random() * messages.length)]);
+        setShowCelebration(true);
       }
       
       return { previousTasks };
@@ -204,15 +201,14 @@ export default function Home() {
     },
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
-      const previousTasks = queryClient.getQueryData<Task[]>(["/api/tasks"]);
+      const previousTasks = queryClient.getQueryData<Task[]>(["/api/tasks"]) ?? [];
       
-      if (previousTasks && previousTasks.length > 0) {
-        queryClient.setQueryData<Task[]>(["/api/tasks"], (old) =>
-          old?.map((task) =>
-            task.id === id ? { ...task, completed: false, completedAt: null } : task
-          )
-        );
-      }
+      // Optimistically update the cache
+      queryClient.setQueryData<Task[]>(["/api/tasks"], (old) =>
+        (old ?? []).map((task) =>
+          task.id === id ? { ...task, completed: false, completedAt: null } : task
+        )
+      );
       
       return { previousTasks };
     },
@@ -237,14 +233,27 @@ export default function Home() {
       const res = await apiRequest("DELETE", "/api/tasks/completed");
       return res.json();
     },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
+      const previousTasks = queryClient.getQueryData<Task[]>(["/api/tasks"]) ?? [];
+      
+      // Optimistically remove completed tasks
+      queryClient.setQueryData<Task[]>(["/api/tasks"], (old) =>
+        (old ?? []).filter((task) => !task.completed)
+      );
+      
+      return { previousTasks };
+    },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "Cleared",
         description: `${data.deleted} completed task${data.deleted !== 1 ? 's' : ''} removed.`,
       });
     },
-    onError: () => {
+    onError: (_err, _, context) => {
+      if (context?.previousTasks) {
+        queryClient.setQueryData(["/api/tasks"], context.previousTasks);
+      }
       toast({
         title: "Error",
         description: "Failed to clear completed tasks. Please try again.",
